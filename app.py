@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import numpy as np
 import json
+import os
 
 from face_recognize_static import extract_embeddings_from_image, MODEL_CONFIGS
 
