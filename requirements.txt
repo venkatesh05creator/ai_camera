@@ -4,3 +4,4 @@ tensorflow
 tflite-runtime
 fastapi
 pydantic
+uvicorn
