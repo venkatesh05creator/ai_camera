@@ -87,6 +87,44 @@ def find_match(current_embedding: np.ndarray, datastore: Dict[str, np.ndarray], 
 
     return recognized_name, min_distance
 
+def extract_face_embedding(face_roi: np.ndarray, interpreter: tf.lite.Interpreter, 
+                         input_details: list, output_details: list, 
+                         config: dict) -> Tuple[Optional[np.ndarray], str]:
+    """
+    Extracts the embedding for a given face ROI using the provided TFLite model.
+    
+    Args:
+        face_roi: The face region of interest (cropped face image)
+        interpreter: The loaded TFLite interpreter
+        input_details: The input details from the interpreter
+        output_details: The output details from the interpreter
+        config: The model configuration dictionary
+        
+    Returns:
+        Tuple containing:
+        - The face embedding as a numpy array (or None if extraction failed)
+        - A status message describing the result
+    """
+    if face_roi.size == 0:
+        return None, "Empty face ROI"
+        
+    try:
+        # Preprocess the face
+        input_data = preprocess_face(face_roi, config, input_details[0]['dtype'])
+        if input_data is None:
+            return None, "Preprocessing failed"
+            
+        # Run inference
+        interpreter.set_tensor(input_details[0]['index'], input_data)
+        interpreter.invoke()
+        embedding = interpreter.get_tensor(output_details[0]['index'])[0]
+        embedding = embedding.astype(np.float32)
+        
+        return embedding, "Success"
+        
+    except Exception as e:
+        return None, f"Inference error: {str(e)}"
+
 # ==================================
 # 3. Main Recognition Function
 # ==================================
@@ -232,15 +270,25 @@ def recognize_faces_in_images(model_name: str, image_paths: List[str]):
 
             # --- Inference ---
             try:
-                interpreter.set_tensor(input_details[0]['index'], input_data)
-                interpreter.invoke()
-                current_embedding = interpreter.get_tensor(output_details[0]['index'])[0]
-                current_embedding = current_embedding.astype(np.float32) # Ensure correct type
+                embedding, status = extract_face_embedding(face_roi, interpreter, 
+                                                         input_details, output_details,
+                                                         config)
+                if embedding is None:
+                    print(f"Warning: Could not extract embedding: {status}")
+                    # Draw error on frame
+                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                    cv2.putText(display_frame, "Embedding Error", (x, y - 5), 
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                    continue
+                    
+                current_embedding = embedding
+                
             except Exception as e:
                 print(f"Error during inference for a face: {e}")
                 # Draw error on frame
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                cv2.putText(display_frame, "Inference Error", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                cv2.putText(display_frame, "Inference Error", (x, y - 5), 
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
                 continue
 
             # --- Comparison & Matching ---
@@ -282,6 +330,85 @@ def recognize_faces_in_images(model_name: str, image_paths: List[str]):
     # --- End of Image Loop ---
     print("\nFinished processing all images.")
 
+def extract_embeddings_from_image(model_name: str, image_path: str) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
+    """
+    Extracts embeddings from faces detected in a single image using the specified model.
+    Returns embeddings along with their face locations.
+    """
+    # --- 1. Load Configuration ---
+    if model_name not in MODEL_CONFIGS:
+        print(f"Error: Model configuration '{model_name}' not found.")
+        return []
+
+    config = MODEL_CONFIGS[model_name]
+    model_path = config['model_path']
+
+    # --- 2. Load TFLite Model ---
+    try:
+        interpreter = tf.lite.Interpreter(model_path=model_path)
+        interpreter.allocate_tensors()
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+        input_dtype = input_details[0]['dtype']
+    except Exception as e:
+        print(f"Error loading TFLite model: {e}")
+        return []
+
+    # --- 3. Load Face Detector ---
+    try:
+        if not os.path.exists(CASCADE_PATH):
+            raise IOError(f"Haar Cascade file not found at {CASCADE_PATH}")
+        face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
+        if face_cascade.empty():
+            raise IOError(f"Cannot load Haar Cascade classifier from {CASCADE_PATH}")
+    except Exception as e:
+        print(f"Error loading face detector: {e}")
+        return []
+
+    # --- 4. Process Image ---
+    try:
+        frame = cv2.imread(image_path)
+        if frame is None:
+            print(f"Could not read image file: {image_path}")
+            return []
+    except Exception as e:
+        print(f"Error reading image: {e}")
+        return []
+
+    # --- Face Detection ---
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(
+        gray_frame,
+        scaleFactor=1.1,
+        minNeighbors=5,
+        minSize=(60, 60)
+    )
+
+    if len(faces) == 0:  # Changed from 'if not faces' to explicit length check
+        return []
+
+    embeddings = []
+
+    # --- Process Each Detected Face ---
+    for (x, y, w, h) in faces:
+        # Crop the face region
+        padding = 10
+        face_roi = frame[max(0, y - padding):min(frame.shape[0], y + h + padding),
+                       max(0, x - padding):min(frame.shape[1], x + w + padding)]
+
+        if face_roi.size == 0:
+            continue
+
+        # Extract embedding
+        embedding, status = extract_face_embedding(face_roi, interpreter, 
+                                                 input_details, output_details,
+                                                 config)
+        if embedding is None:
+            continue
+
+        embeddings.append((embedding, (x, y, w, h)))
+
+    return embeddings
 
 # ==================================
 # 4. Argument Parsing & Execution
