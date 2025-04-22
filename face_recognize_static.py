@@ -237,11 +237,12 @@ def recognize_faces_in_images(model_name: str, image_paths: List[str]):
             gray_frame,
             scaleFactor=1.1,
             minNeighbors=5,
-            minSize=(60, 60) # Make this configurable? For now, fixed.
+            minSize=(60, 60)
         )
 
-        if not faces:
+        if len(faces) == 0:
             print("No faces detected in this image.")
+            continue
         else:
             print(f"Detected {len(faces)} face(s). Recognizing...")
 
@@ -330,86 +331,220 @@ def recognize_faces_in_images(model_name: str, image_paths: List[str]):
     # --- End of Image Loop ---
     print("\nFinished processing all images.")
 
+# def extract_embeddings_from_image(model_name: str, image_path: str) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
+#     """
+#     Extracts embeddings from faces detected in a single image using the specified model.
+#     Returns embeddings along with their face locations.
+#     """
+#     # --- 1. Load Configuration ---
+#     if model_name not in MODEL_CONFIGS:
+#         print(f"Error: Model configuration '{model_name}' not found.")
+#         return []
+
+#     config = MODEL_CONFIGS[model_name]
+#     model_path = config['model_path']
+
+#     # --- 2. Load TFLite Model ---
+#     try:
+#         interpreter = tf.lite.Interpreter(model_path=model_path)
+#         interpreter.allocate_tensors()
+#         input_details = interpreter.get_input_details()
+#         output_details = interpreter.get_output_details()
+#         input_dtype = input_details[0]['dtype']
+#     except Exception as e:
+#         print(f"Error loading TFLite model: {e}")
+#         return []
+
+#     # --- 3. Load Face Detector ---
+#     try:
+#         if not os.path.exists(CASCADE_PATH):
+#             raise IOError(f"Haar Cascade file not found at {CASCADE_PATH}")
+#         face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
+#         if face_cascade.empty():
+#             raise IOError(f"Cannot load Haar Cascade classifier from {CASCADE_PATH}")
+#     except Exception as e:
+#         print(f"Error loading face detector: {e}")
+#         return []
+
+#     # --- 4. Process Image ---
+#     try:
+#         frame = cv2.imread(image_path)
+#         if frame is None:
+#             print(f"Could not read image file: {image_path}")
+#             return []
+#     except Exception as e:
+#         print(f"Error reading image: {e}")
+#         return []
+
+#     # --- Face Detection ---
+#     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     faces = face_cascade.detectMultiScale(
+#         gray_frame,
+#         scaleFactor=1.1,
+#         minNeighbors=5,
+#         minSize=(60, 60)
+#     )
+
+#     if len(faces) == 0:  # Changed from 'if not faces' to explicit length check
+#         return []
+
+#     embeddings = []
+
+#     # --- Process Each Detected Face ---
+#     for (x, y, w, h) in faces:
+#         # Crop the face region
+#         padding = 10
+#         face_roi = frame[max(0, y - padding):min(frame.shape[0], y + h + padding),
+#                        max(0, x - padding):min(frame.shape[1], x + w + padding)]
+
+#         if face_roi.size == 0:
+#             continue
+
+#         # Extract embedding
+#         embedding, status = extract_face_embedding(face_roi, interpreter, 
+#                                                  input_details, output_details,
+#                                                  config)
+#         if embedding is None:
+#             continue
+
+#         embeddings.append((embedding, (x, y, w, h)))
+
+#     return embeddings
 def extract_embeddings_from_image(model_name: str, image_path: str) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
     """
     Extracts embeddings from faces detected in a single image using the specified model.
     Returns embeddings along with their face locations.
     """
+    import time
+    timings = {}
+    total_start_time = time.time()
+    
     # --- 1. Load Configuration ---
+    config_start_time = time.time()
     if model_name not in MODEL_CONFIGS:
         print(f"Error: Model configuration '{model_name}' not found.")
         return []
 
     config = MODEL_CONFIGS[model_name]
     model_path = config['model_path']
+    timings['config_load'] = time.time() - config_start_time
 
     # --- 2. Load TFLite Model ---
+    model_load_start_time = time.time()
     try:
         interpreter = tf.lite.Interpreter(model_path=model_path)
         interpreter.allocate_tensors()
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
         input_dtype = input_details[0]['dtype']
+        timings['model_load'] = time.time() - model_load_start_time
     except Exception as e:
         print(f"Error loading TFLite model: {e}")
         return []
 
     # --- 3. Load Face Detector ---
+    detector_load_start_time = time.time()
     try:
         if not os.path.exists(CASCADE_PATH):
             raise IOError(f"Haar Cascade file not found at {CASCADE_PATH}")
         face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
         if face_cascade.empty():
             raise IOError(f"Cannot load Haar Cascade classifier from {CASCADE_PATH}")
+        timings['detector_load'] = time.time() - detector_load_start_time
     except Exception as e:
         print(f"Error loading face detector: {e}")
         return []
 
-    # --- 4. Process Image ---
+    # --- 4. Image Loading and Preprocessing ---
+    image_load_start_time = time.time()
     try:
         frame = cv2.imread(image_path)
         if frame is None:
             print(f"Could not read image file: {image_path}")
             return []
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        timings['image_load'] = time.time() - image_load_start_time
     except Exception as e:
         print(f"Error reading image: {e}")
         return []
 
-    # --- Face Detection ---
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # --- 5. Face Detection ---
+    detection_start_time = time.time()
     faces = face_cascade.detectMultiScale(
         gray_frame,
         scaleFactor=1.1,
         minNeighbors=5,
         minSize=(60, 60)
     )
+    timings['face_detection'] = time.time() - detection_start_time
 
-    if len(faces) == 0:  # Changed from 'if not faces' to explicit length check
+    if len(faces) == 0:
         return []
 
     embeddings = []
+    timings['face_embeddings'] = []
+    timings['face_preprocessing'] = []
 
-    # --- Process Each Detected Face ---
-    for (x, y, w, h) in faces:
-        # Crop the face region
+    # --- 6. Process Each Detected Face ---
+    for i, (x, y, w, h) in enumerate(faces):
+        # Time face preprocessing (cropping)
+        preprocess_start = time.time()
         padding = 10
         face_roi = frame[max(0, y - padding):min(frame.shape[0], y + h + padding),
                        max(0, x - padding):min(frame.shape[1], x + w + padding)]
 
         if face_roi.size == 0:
             continue
+            
+        timings['face_preprocessing'].append(time.time() - preprocess_start)
 
-        # Extract embedding
+        # Time embedding extraction
+        embedding_start = time.time()
         embedding, status = extract_face_embedding(face_roi, interpreter, 
                                                  input_details, output_details,
                                                  config)
         if embedding is None:
             continue
 
+        timings['face_embeddings'].append(time.time() - embedding_start)
         embeddings.append((embedding, (x, y, w, h)))
 
-    return embeddings
+    # --- Final Timing Summary ---
+    total_time = time.time() - total_start_time
 
+    print("\n========== TIMING ANALYSIS ==========")
+    print("\n1. Initialization Times:")
+    print(f"├── Configuration Loading: {timings['config_load']:.3f} seconds")
+    print(f"├── TFLite Model Loading: {timings['model_load']:.3f} seconds")
+    print(f"└── Face Detector Loading: {timings['detector_load']:.3f} seconds")
+    
+    print("\n2. Image Processing:")
+    print(f"└── Image Loading & Conversion: {timings['image_load']:.3f} seconds")
+    
+    print("\n3. Face Detection:")
+    print(f"├── Detection Time: {timings['face_detection']:.3f} seconds")
+    print(f"└── Faces Found: {len(faces)}")
+    
+    if len(faces) > 0:
+        print("\n4. Per-Face Processing:")
+        avg_preprocess = sum(timings['face_preprocessing']) / len(timings['face_preprocessing'])
+        avg_embedding = sum(timings['face_embeddings']) / len(timings['face_embeddings'])
+        
+        print(f"├── Average Preprocessing: {avg_preprocess:.3f} seconds/face")
+        print(f"├── Average Embedding Generation: {avg_embedding:.3f} seconds/face")
+        print(f"└── Total Average: {(avg_preprocess + avg_embedding):.3f} seconds/face")
+    
+    print("\n5. Overall Performance:")
+    print(f"├── Total Execution Time: {total_time:.3f} seconds")
+    if len(faces) > 0:
+        print(f"├── Time per Face: {total_time/len(faces):.3f} seconds")
+        detection_percent = (timings['face_detection'] / total_time) * 100
+        embedding_percent = (sum(timings['face_embeddings']) / total_time) * 100
+        print(f"├── Detection portion: {detection_percent:.1f}%")
+        print(f"└── Recognition portion: {embedding_percent:.1f}%")
+    print("====================================")
+
+    return embeddings
 # ==================================
 # 4. Argument Parsing & Execution
 # ==================================
@@ -433,18 +568,12 @@ def parse_arguments() -> argparse.Namespace:
 
 # --- Entry Point ---
 if __name__ == "__main__":
-    args = parse_arguments()
-
-    # # Optional: Override threshold from args if provided
-    # if args.threshold is not None:
-    #     if args.model in MODEL_CONFIGS:
-    #         print(f"Overriding threshold for {args.model} to {args.threshold}")
-    #         MODEL_CONFIGS[args.model]['recognition_threshold'] = args.threshold
-    #     else:
-    #         # This case should ideally not happen due to 'choices' in argparse
-    #         print(f"Warning: Cannot override threshold for unknown model '{args.model}'")
-
-    recognize_faces_in_images(args.model, args.image_paths)
-
-    cv2.destroyAllWindows() # Final cleanup just in case
+    # Direct parameters
+    model_name = "facenet"
+    image_path = ["/Users/chaitanyakartik/Downloads/Faces/1a6b41480b9316ef/image9.jpeg"]
+    
+    # Run the function
+    recognize_faces_in_images(model_name, image_path)
+    
+    cv2.destroyAllWindows()
     print("\nProcessing complete.")

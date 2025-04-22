@@ -1,0 +1,43 @@
+{
+	"info": {
+		"_postman_id": "2275a4d3-da67-46e8-93c0-19e1e2912bf7",
+		"name": "Load Test",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "44299955",
+		"_collection_link": "https://chaitanyakartik.postman.co/workspace/chaitanya-kartik's-Workspace~0c2e3a3c-f6e2-4f62-8365-3b9ad1bb6f43/collection/44299955-2275a4d3-da67-46e8-93c0-19e1e2912bf7?action=share&source=collection_link&creator=44299955"
+	},
+	"item": [
+		{
+			"name": "http://localhost:8000/extract-embeddings?model_name=facenet&image_path=/Users/chaitanyakartik/Downloads/Faces/1a6b41480b9316ef/image9.jpeg",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/extract-embeddings?model_name=facenet&image_path=/Users/chaitanyakartik/Downloads/Faces/1a6b41480b9316ef/image9.jpeg",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"extract-embeddings"
+					],
+					"query": [
+						{
+							"key": "model_name",
+							"value": "facenet"
+						},
+						{
+							"key": "image_path",
+							"value": "/Users/chaitanyakartik/Downloads/Faces/1a6b41480b9316ef/image9.jpeg"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
