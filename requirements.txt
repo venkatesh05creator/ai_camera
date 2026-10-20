@@ -1,7 +1,38 @@
-opencv-python
-numpy
-tensorflow
-##tflite-runtime
-fastapi
-pydantic
-uvicorn
+# Runtime dependencies of the Owner-Only AI Camera Assistant.
+#
+#   pip install -r requirements.txt
+#
+# Requires Python 3.10 or newer (FastAPI >= 0.156 requires 3.10+).
+#
+# The versions below are the ones this project was tested with.  They are
+# constrained (not pinned to a single version) so that security patches can be
+# picked up - run "pip-audit" regularly to verify the resolved set.
+
+# --- Web framework ---------------------------------------------------------
+fastapi>=0.156,<1.0
+starlette>=1.9,<2.0
+uvicorn[standard]>=0.34,<1.0
+websockets>=12,<16
+python-multipart>=0.0.31,<1.0
+
+# --- Data validation and configuration -------------------------------------
+pydantic>=2.14,<3.0
+pydantic-settings>=2.16,<3.0
+
+# --- Persistence -----------------------------------------------------------
+SQLAlchemy>=2.0.30,<3.0
+
+# --- Authentication and cryptography ---------------------------------------
+argon2-cffi>=23.1,<26.0
+cryptography>=50.0.2,<51.0
+
+# --- Templating and HTTP client --------------------------------------------
+Jinja2>=3.1,<4.0
+httpx>=0.28,<1.0
+
+# --- Optional: computer vision (biometric enrolment and the legacy CLI) ----
+# Not required for the web application itself - it degrades gracefully and
+# reports "biometric engine not installed" instead of failing to start.
+numpy>=2.1,<3.0
+opencv-python-headless>=4.10,<5.0
+tensorflow>=2.20,<3.0

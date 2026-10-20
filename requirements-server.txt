@@ -1,0 +1,21 @@
+# Minimal server-only dependencies (no TensorFlow, no GUI libraries).
+#
+#   pip install -r requirements-server.txt
+#
+# Use this on a headless server.  Biometric enrolment then reports that the
+# vision stack is unavailable; every other feature keeps working.
+#
+# Requires Python 3.10 or newer.
+
+fastapi>=0.156,<1.0
+starlette>=1.9,<2.0
+uvicorn[standard]>=0.34,<1.0
+websockets>=12,<16
+python-multipart>=0.0.31,<1.0
+pydantic>=2.14,<3.0
+pydantic-settings>=2.16,<3.0
+SQLAlchemy>=2.0.30,<3.0
+argon2-cffi>=23.1,<26.0
+cryptography>=50.0.2,<51.0
+Jinja2>=3.1,<4.0
+httpx>=0.28,<1.0

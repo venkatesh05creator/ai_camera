@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Documentation - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Documentation</h1>
+  <p class="muted">Everything you need to run, secure and understand this installation.</p>
+</section>
+
+<nav aria-label="Documentation sections" class="card">
+  <ul class="list-reset">
+    {% for doc in docs %}
+      <li><a href="{{ doc.url }}">{{ doc.title }}</a> - <span class="muted small">{{ doc.snippet }}</span></li>
+    {% endfor %}
+  </ul>
+</nav>
+
+<section class="card" id="getting-started">
+  <h2>Getting started</h2>
+  <ol class="muted">
+    <li>Create the owner account on the first run - it becomes the owner of the installation.</li>
+    <li>Sign in and open the dashboard.</li>
+    <li>Register your cameras and give them a location label.</li>
+    <li>Ask the assistant a question; it answers from your own camera metadata.</li>
+  </ol>
+</section>
+
+<section class="card" id="privacy">
+  <h2>Privacy</h2>
+  <ul class="muted">
+    <li>Only metadata about events is stored. Raw frames and audio are not retained.</li>
+    <li>Biometric templates are encrypted with AES-GCM before they touch the database.</li>
+    <li>Templates expire automatically after the configured retention period and can be withdrawn at any time.</li>
+    <li>Unenrolled people are never identified - they stay "Unknown".</li>
+    <li>Context that is sent to a third-party AI provider is redacted first.</li>
+  </ul>
+</section>
+
+<section class="card" id="enrolment">
+  <h2>Enrolling a face template</h2>
+  <p class="muted">
+    Open the dashboard, choose "Enrol an identity" and upload one or more pictures of yourself.
+    The request must carry an explicit consent flag; without it the server refuses to store
+    anything. Withdrawing consent deletes the template immediately.
+  </p>
+</section>
+
+<section class="card" id="mfa">
+  <h2>Multi-factor authentication</h2>
+  <p class="muted">
+    Administrators and owners should enable a TOTP authenticator. The secret is stored
+    encrypted and the shared secret is only shown once. Backup codes are provided for the
+    case that the device is lost.
+  </p>
+</section>
+
+<section class="card" id="device-tokens">
+  <h2>Device tokens</h2>
+  <p class="muted">
+    Phones, wearables and IP cameras push events with a device token and an HMAC signature
+    over the timestamp, a nonce and the body. Nonces can only be used once, which prevents
+    replay attacks.
+  </p>
+</section>
+
+<section class="card" id="assistant">
+  <h2>Assistant safety rules</h2>
+  <ul class="muted">
+    <li>The assistant only sees your own data - permissions are checked on the server.</li>
+    <li>Cameras metadata and your messages are wrapped as untrusted data, so injected instructions cannot change the rules.</li>
+    <li>Mutating actions are never executed by the model; they wait for your explicit confirmation.</li>
+    <li>Daily token and request budgets bound the cost of the assistant.</li>
+  </ul>
+</section>
+{% endblock %}

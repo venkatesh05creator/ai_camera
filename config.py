@@ -12,7 +12,7 @@ MODEL_CONFIGS = {
         'model_path': 'models/mobile_face_net.tflite', # Assumed path
         'datastore_path': 'datastore/datastore_128_Dim.json', # Assumed path
         'input_size': 112,       # Assumed input size
-        'output_size': 128,      # Assumed output size
+        'output_size': 192,      # Verified against models/mobile_face_net.tflite
         'image_mean': 127.5,     # Common normalization for lite models
         'image_std': 127.5,      # Common normalization for lite models
         'recognition_threshold': 0.9  # Add this line

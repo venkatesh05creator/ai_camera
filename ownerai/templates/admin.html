@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Administration - {{ app_name }}{% endblock %}
+{% block head %}<script src="/static/js/admin.js" defer></script>{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Administration</h1>
+  <p class="muted">Only administrators and the owner can see this page. Every action is written to the audit log.</p>
+</section>
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="users-heading">
+    <h2 id="users-heading">Accounts</h2>
+    <p class="loading" data-panel-status="users">Loading accounts…</p>
+    <div class="table-wrap">
+      <table data-users-table hidden>
+        <caption class="sr-only">Registered accounts</caption>
+        <thead>
+          <tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Action</th></tr>
+        </thead>
+        <tbody data-users-body></tbody>
+      </table>
+    </div>
+    <p class="alert alert-error" data-users-error role="alert" hidden></p>
+  </section>
+
+  <section class="card" aria-labelledby="audit-heading">
+    <h2 id="audit-heading">Audit log</h2>
+    <p class="loading" data-panel-status="audit">Loading audit entries…</p>
+    <div class="table-wrap">
+      <table data-audit-table hidden>
+        <caption class="sr-only">Audit trail</caption>
+        <thead>
+          <tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Outcome</th></tr>
+        </thead>
+        <tbody data-audit-body></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="contacts-heading">
+    <h2 id="contacts-heading">Contact messages</h2>
+    <p class="loading" data-panel-status="contacts">Loading messages…</p>
+    <ul class="list-reset" data-contacts-list></ul>
+    <div class="empty-state" data-contacts-empty hidden>
+      <strong>No messages</strong>
+      Submissions of the public contact form appear here.
+    </div>
+  </section>
+</div>
+{% endblock %}

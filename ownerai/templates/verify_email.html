@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Confirm your account - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Confirm your e-mail address</h1>
+  <p class="muted">This confirms that the address belongs to you and unlocks the full account.</p>
+  <form class="stack" data-verify-form novalidate>
+    <input type="hidden" name="token" value="{{ token }}">
+    <p class="alert alert-error" data-verify-error role="alert" hidden></p>
+    <p class="alert" data-verify-status role="status" hidden></p>
+    <button class="button button-block" type="submit" data-verify-submit>Confirm my address</button>
+  </form>
+  <p class="small muted"><a href="/dashboard">Go to the dashboard</a></p>
+</section>
+{% endblock %}

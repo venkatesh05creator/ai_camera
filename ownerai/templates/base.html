@@ -1,0 +1,144 @@
+{#
+  Base layout shared by every page.
+  No inline scripts or styles: the strict Content-Security-Policy forbids both.
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Privacy-first, owner-only AI camera assistant for webcams, phones, wearables and IP cameras.">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/js/app.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">OC</span>
+      <span>Owner-Only AI Camera Assistant</span>
+    </a>
+
+    <button class="icon-button nav-toggle" type="button" data-nav-toggle
+            aria-expanded="false" aria-controls="primary-nav" aria-label="Toggle navigation">
+      <span aria-hidden="true">☰</span>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul>
+        <li><a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Home</a></li>
+        <li><a href="/docs" {% if request.url.path == '/docs' %}aria-current="page"{% endif %}>Documentation</a></li>
+        {% if user %}
+          <li><a href="/dashboard" {% if request.url.path == '/dashboard' %}aria-current="page"{% endif %}>Dashboard</a></li>
+          {% if is_admin %}
+            <li><a href="/admin" {% if request.url.path == '/admin' %}aria-current="page"{% endif %}>Administration</a></li>
+          {% endif %}
+        {% endif %}
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <form class="search" role="search" data-search-form action="/dashboard" method="get">
+        <label class="sr-only" for="site-search">Search cameras, events, conversations and documentation</label>
+        <input id="site-search" name="q" type="search" data-search-input
+               placeholder="Search cameras, events, help…" autocomplete="off" maxlength="120">
+        <button class="button button-secondary button-small" type="submit">Search</button>
+        <ul class="search-results" id="search-results" data-search-results role="listbox" aria-label="Search results" hidden></ul>
+      </form>
+
+      <button class="icon-button" type="button" data-theme-toggle aria-pressed="false"
+              aria-label="Switch colour theme">
+        <span aria-hidden="true" data-theme-icon>☾</span>
+      </button>
+
+      {% if user %}
+        <span class="small muted" data-current-user>{{ user.display_name or user.email }}</span>
+        <button class="button button-secondary button-small" type="button" data-logout>Sign out</button>
+      {% else %}
+        <a class="button button-secondary button-small" href="/login">Sign in</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main id="main" class="container">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p>&copy; {{ app_version }} {{ app_name }}. Owner verification only - no strangers are identified.</p>
+    <ul>
+      <li><a href="/docs">Documentation</a></li>
+      <li><a href="/docs#privacy">Privacy</a></li>
+      <li><button class="button button-secondary button-small" type="button" data-contact-open>Contact</button></li>
+    </ul>
+  </div>
+</footer>
+
+<button class="back-to-top" type="button" data-back-to-top hidden aria-label="Back to top of the page">↑</button>
+
+<button class="fab" type="button" data-contact-open aria-haspopup="dialog"
+        aria-controls="contact-dialog" aria-label="Open the contact form">✉</button>
+
+<dialog class="contact-dialog" id="contact-dialog" data-contact-dialog aria-labelledby="contact-title">
+  <h2 id="contact-title">Contact us</h2>
+  <p class="muted small">Describe your problem. Messages are stored encrypted and are only visible to the
+    administrators of this installation.</p>
+  <form class="stack" data-contact-form novalidate>
+    <div class="field">
+      <label for="contact-email">Your e-mail address</label>
+      <input id="contact-email" name="email" type="email" autocomplete="email" required maxlength="320">
+    </div>
+    <div class="field">
+      <label for="contact-subject">Subject</label>
+      <input id="contact-subject" name="subject" type="text" required maxlength="160">
+    </div>
+    <div class="field">
+      <label for="contact-message">Message</label>
+      <textarea id="contact-message" name="message" required minlength="10" maxlength="4000"></textarea>
+    </div>
+    {# Honeypot - hidden from humans, tempting for bots. #}
+    <div class="sr-only" aria-hidden="true">
+      <label for="contact-website">Leave this field empty</label>
+      <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off">
+    </div>
+    <p class="alert" data-contact-status role="status" hidden></p>
+    <div class="dialog-actions">
+      <button class="button button-secondary" type="button" data-contact-close>Close</button>
+      <button class="button" type="submit" data-contact-submit>Send message</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="cookie-banner" data-cookie-banner hidden role="region" aria-label="Cookie preferences">
+  <h2>Cookies on this site</h2>
+  <p>This installation uses cookies only to keep you signed in and to protect forms against
+    cross-site request forgery. No analytics, advertising or third-party tracking scripts are
+    loaded, and no camera images are sent to any external service.</p>
+  <div class="cookie-actions">
+    <button class="button button-small" type="button" data-cookie-accept>Accept</button>
+    <button class="button button-secondary button-small" type="button" data-cookie-reject>Essential only</button>
+    <button class="button button-secondary button-small" type="button" data-cookie-settings aria-expanded="false"
+            aria-controls="cookie-detail">Settings</button>
+  </div>
+  <div class="cookie-detail" id="cookie-detail" data-cookie-detail hidden>
+    <strong>What is stored</strong>
+    <ul>
+      <li><code>ownerai_session</code> - a random session identifier (essential, expires with the session).</li>
+      <li><code>ownerai_csrf</code> - a random token that protects forms (essential).</li>
+      <li><code>ownerai_consent</code> - remembers your choice on this banner (essential).</li>
+    </ul>
+    <p>Your camera data, conversations and biometric templates are never written to cookies.</p>
+  </div>
+</div>
+
+<div class="sr-only" role="status" aria-live="polite" data-live-region></div>
+</body>
+</html>

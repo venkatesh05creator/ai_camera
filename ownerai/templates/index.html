@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ app_name }} - private camera assistant{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Your cameras, your data, your assistant.</h1>
+  <p>
+    A privacy-first assistant that only ever answers for the people you explicitly enrolled.
+    Camera events stay on your server, biometric templates are encrypted, and the AI never
+    decides who is allowed to see what.
+  </p>
+  <div class="hero-actions">
+    {% if user %}
+      <a class="button" href="/dashboard">Open the dashboard</a>
+    {% else %}
+      <a class="button" href="/register">Create an account</a>
+      <a class="button button-secondary" href="/login">Sign in</a>
+    {% endif %}
+    <a class="button button-secondary" href="/docs">Read the documentation</a>
+  </div>
+</section>
+
+<section class="grid" aria-label="Features">
+  <article class="card">
+    <h2>Owner verification only</h2>
+    <p class="muted">
+      Faces are matched against the templates you enrolled yourself. Everybody else stays
+      anonymous - the assistant never guesses a stranger's identity.
+    </p>
+  </article>
+  <article class="card">
+    <h2>Every camera type</h2>
+    <p class="muted">
+      Laptop webcams, Android phones, wearable cameras and compatible IP cameras are all
+      registered in one place, each with its own events and permissions.
+    </p>
+  </article>
+  <article class="card">
+    <h2>Privacy by default</h2>
+    <p class="muted">
+      Raw frames are not retained, templates are encrypted at rest, retention periods expire
+      automatically and a withdrawal deletes your data immediately.
+    </p>
+  </article>
+  <article class="card">
+    <h2>A guarded assistant</h2>
+    <p class="muted">
+      The model receives metadata only, never raw video. Retrieved content is treated as
+      untrusted data, so injected instructions cannot escalate your permissions.
+    </p>
+  </article>
+</section>
+
+<section class="card" aria-labelledby="how-it-works">
+  <h2 id="how-it-works">How it works</h2>
+  <ol class="muted">
+    <li>Register the cameras you own and give each one a location label.</li>
+    <li>Enrol your own face template - consent is asked for explicitly and can be withdrawn.</li>
+    <li>Ask the assistant about your cameras; it answers from your own metadata only.</li>
+    <li>Review, export or delete everything at any time from the dashboard.</li>
+  </ol>
+</section>
+{% endblock %}

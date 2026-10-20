@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Create an account - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Create your account</h1>
+  <p class="muted">The first account of an installation becomes its owner.</p>
+  <form class="stack" data-auth-form data-auth-mode="register" novalidate>
+    <div class="field">
+      <label for="register-name">Display name (optional)</label>
+      <input id="register-name" name="display_name" type="text" autocomplete="name" maxlength="120">
+    </div>
+    <div class="field">
+      <label for="register-email">E-mail address</label>
+      <input id="register-email" name="email" type="email" autocomplete="username" required maxlength="320">
+    </div>
+    <div class="field">
+      <label for="register-password">Password</label>
+      <input id="register-password" name="password" type="password" autocomplete="new-password"
+             required minlength="12" maxlength="256">
+      <span class="hint">At least 12 characters with upper and lower case letters, a digit and a symbol.</span>
+    </div>
+    <p class="alert alert-error" data-auth-error role="alert" hidden></p>
+    <p class="alert" data-auth-status role="status" hidden></p>
+    <button class="button button-block" type="submit" data-auth-submit>Create account</button>
+  </form>
+  <p class="small muted">Already registered? <a href="/login">Sign in</a></p>
+</section>
+{% endblock %}

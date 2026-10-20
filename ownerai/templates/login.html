@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Sign in - {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Sign in</h1>
+  <p class="muted">Use the account that owns your cameras.</p>
+  <form class="stack" data-auth-form data-auth-mode="login" novalidate>
+    <div class="field">
+      <label for="login-email">E-mail address</label>
+      <input id="login-email" name="email" type="email" autocomplete="username" required maxlength="320">
+    </div>
+    <div class="field">
+      <label for="login-password">Password</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password"
+             required maxlength="256">
+    </div>
+    <p class="alert alert-error" data-auth-error role="alert" hidden></p>
+    <p class="alert" data-auth-status role="status" hidden></p>
+    <button class="button button-block" type="submit" data-auth-submit>Sign in</button>
+  </form>
+  <p class="small muted">
+    <a href="/forgot-password">Forgot your password?</a> &middot;
+    <a href="/register">Create an account</a>
+  </p>
+</section>
+{% endblock %}
