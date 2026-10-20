@@ -1,7 +1,7 @@
 opencv-python
 numpy
 tensorflow
-tflite-runtime
+##tflite-runtime
 fastapi
 pydantic
 uvicorn

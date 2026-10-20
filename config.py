@@ -6,7 +6,7 @@ MODEL_CONFIGS = {
         'output_size': 512, # Output size for original facenet model used here
         'image_mean': 128.0,
         'image_std': 128.0,
-        'recognition_threshold': 0.9  # Add this line
+        'recognition_threshold': 0.1  # Add this line
     },
     'mobile_facenet': {
         'model_path': 'models/mobile_face_net.tflite', # Assumed path
