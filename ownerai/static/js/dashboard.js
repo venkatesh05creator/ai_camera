@@ -688,6 +688,13 @@
     initChat();
     initPasswordForm();
     initMfa();
+    // The operations console loads the devices and the events itself.
+    window.dashboardReloadIdentities = loadIdentities;
+    if (window.OwnerAIConsole) {
+      loadIdentities();
+      loadSessions();
+      return;
+    }
     loadDevices();
     loadEvents();
     loadIdentities();

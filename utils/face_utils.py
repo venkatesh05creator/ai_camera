@@ -115,21 +115,29 @@ def find_match(current_embedding: np.ndarray, datastore: Dict[str, np.ndarray],
     if not datastore:
         return None, 0.0
     
-    if current_embedding.shape[-1] != expected_output_dim:
-        print(f"Warning: Embedding dimension mismatch. Expected {expected_output_dim}, got {current_embedding.shape[-1]}")
+    current_vec = np.asarray(current_embedding, dtype=np.float32).reshape(-1)
+    if current_vec.shape[0] != expected_output_dim:
+        print(f"Warning: Embedding dimension mismatch. Expected {expected_output_dim}, got {current_vec.shape[0]}")
         return None, 0.0
+    
+    current_norm = np.linalg.norm(current_vec)
+    if current_norm > 0:
+        current_vec = current_vec / current_norm
     
     best_match = None
     best_score = 0.0
     
     for name, stored_embedding in datastore.items():
-        if stored_embedding.shape[-1] != expected_output_dim:
+        stored_vec = np.asarray(stored_embedding, dtype=np.float32).reshape(-1)
+        if stored_vec.shape[0] != expected_output_dim:
             continue
             
+        stored_norm = np.linalg.norm(stored_vec)
+        if stored_norm > 0:
+            stored_vec = stored_vec / stored_norm
+
         # Calculate cosine similarity
-        similarity = np.dot(current_embedding, stored_embedding.T)
-        # Convert similarity to scalar float
-        similarity = float(similarity)
+        similarity = float(np.dot(current_vec, stored_vec))
         if similarity > best_score:
             best_score = similarity
             best_match = name
@@ -137,3 +145,4 @@ def find_match(current_embedding: np.ndarray, datastore: Dict[str, np.ndarray],
     if best_score >= threshold:
         return best_match, best_score
     return None, best_score
+

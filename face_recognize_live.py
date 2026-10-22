@@ -116,10 +116,10 @@ def run_face_recognition(model_name: str):
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Live face recognition')
-    parser.add_argument('--model', type=str, required=True,
-                      help='Model configuration name (e.g., facenet, facenet_lite)')
+    parser.add_argument('--model', type=str, default='facenet',
+                      help='Model configuration name (default: facenet)')
     return parser.parse_args()
 
 if __name__ == "__main__":
-    # args = parse_arguments()
-    run_face_recognition("facenet")
+    args = parse_arguments()
+    run_face_recognition(args.model)

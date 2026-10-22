@@ -27,7 +27,20 @@ from .middleware import (
     apply_cors,
 )
 from .models import Device
-from .routers import admin, auth, chat, contact, devices, events, identities, legacy, pages, search
+from .routers import (
+    admin,
+    auth,
+    chat,
+    contact,
+    devices,
+    events,
+    identities,
+    legacy,
+    pages,
+    search,
+    vision,
+    voice,
+)
 from .sessions import session_from_token
 from .settings import get_settings
 
@@ -126,6 +139,8 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(events.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
+    app.include_router(voice.router)
+    app.include_router(vision.router)
     app.include_router(search.router)
     app.include_router(admin.router)
     app.include_router(legacy.router)

@@ -140,10 +140,25 @@ def add_face_from_base64(model_name: str, base64_image: str, name: str) -> str:
     return result
 
 if __name__ == "__main__":
-    image_path = '/Users/chaitanyakartik/Downloads/WhatsApp Image 2025-04-22 at 17.52.48.jpeg'
+    parser = argparse.ArgumentParser(description='Add face to datastore from a static image')
+    parser.add_argument('--image', type=str, default=None, help='Path to image')
+    parser.add_argument('--name', type=str, default=None, help='Identity name')
+    parser.add_argument('--model', type=str, default='facenet', help='Model name (default: facenet)')
+    args = parser.parse_args()
+
+    image_path = args.image or input("Enter path to image: ").strip().strip('"')
+    name = args.name or input("Enter name for this face: ").strip()
+
+    if not os.path.exists(image_path):
+        print(f"Error: Image not found: {image_path}")
+        exit(1)
+    if not name:
+        print("Error: Name cannot be empty")
+        exit(1)
+
     image = cv2.imread(image_path)
     b64_image = image_to_base64(image)
-    res = add_face_from_base64("facenet", b64_image, "Pranav")
-    print(res)
+    res = add_face_from_base64(args.model, b64_image, name)
+    print(f"Result: {res}")
 
     

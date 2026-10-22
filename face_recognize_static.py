@@ -133,18 +133,23 @@ def recognize_face(model_name: str, base64_image: str) -> Tuple[list[Dict[str, A
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Face recognition on a static image')
-    parser.add_argument('--model', type=str, required=True,
-                      help='Model configuration name (e.g., facenet, facenet_lite)')
-    parser.add_argument('--image', type=str, required=True,
+    parser.add_argument('--model', type=str, default='facenet',
+                      help='Model configuration name (default: facenet)')
+    parser.add_argument('--image', type=str, default=None,
                       help='Path to image for face recognition')
     return parser.parse_args()
 
 if __name__ == "__main__":
-    # args = parse_arguments()
-    image_path = "/Users/chaitanyakartik/Downloads/Faces/1a0da286ede4cf28/image2.jpeg"
+    args = parse_arguments()
+    image_path = args.image
+    if not image_path:
+        image_path = input("Enter path to image: ").strip().strip('"')
+    if not os.path.exists(image_path):
+        print(f"Error: Image file not found: {image_path}")
+        exit(1)
     image = cv2.imread(image_path)
     b64_image = image_to_base64(image)
-    results, images = recognize_face(model_name="facenet", base64_image=b64_image)
+    results, images = recognize_face(model_name=args.model, base64_image=b64_image)
+    print(f"Total faces found: {len(results)}")
     for result in results:
         print(f"Found {result['name']} with confidence {result['confidence']:.2f}")
-    # print(results)

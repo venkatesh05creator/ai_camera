@@ -253,14 +253,17 @@ def test_session_cookie_is_http_only_and_not_in_local_storage(client):
     # No front-end file may persist the session token.
     import pathlib
 
+    allowed_storage_keys = {"ownerai-theme", "ownerai-voice-consent", "ownerai-voice-speak"}
     static_dir = pathlib.Path(__file__).resolve().parent.parent / "ownerai" / "static"
     for path in static_dir.rglob("*.js"):
         content = path.read_text(encoding="utf-8")
         assert "ownerai_session" not in content
         assert "sessionStorage" not in content
-        # localStorage may only be used for the theme preference.
-        for match in re.findall(r"localStorage\.\w+\(([^)]*)\)", content):
-            assert "THEME_KEY" in match or "theme" in match.lower()
+        # Only non-sensitive preferences may be kept in the browser.
+        for key in re.findall(r'KEY\s*=\s*"([^"]+)"', content):
+            assert key in allowed_storage_keys, key
+        for key in re.findall(r'localStorage\.\w+\(\s*"([^"]+)"', content):
+            assert key in allowed_storage_keys, key
 
 
 def test_disabled_account_cannot_sign_in(client):

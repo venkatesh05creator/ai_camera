@@ -674,6 +674,85 @@ th {
   opacity: 0.75;
 }
 
+/* ---------------------------------------------------------------- voice */
+.voice-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--bg-subtle);
+}
+
+.voice-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.voice-notice {
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-left: 3px solid var(--warning);
+  padding-left: 0.7rem;
+}
+
+.voice-notice[hidden] {
+  display: none;
+}
+
+.voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.voice-mic {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 1.15rem;
+}
+
+.voice-mic[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-mic.is-listening {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+.voice-panel.is-listening {
+  border-color: var(--danger);
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(179, 38, 30, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(179, 38, 30, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-mic.is-listening {
+    animation: none;
+  }
+}
+
+.voice-status {
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  min-height: 1.4em;
+}
+
 /* --------------------------------------------------------- back to top */
 .back-to-top {
   position: fixed;

@@ -11,11 +11,13 @@
   <meta name="description" content="Privacy-first, owner-only AI camera assistant for webcams, phones, wearables and IP cameras.">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/console.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/js/app.js" defer></script>
   {% block head %}{% endblock %}
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
+{% block body %}
 <a class="skip-link" href="#main">Skip to main content</a>
 
 <header class="site-header">
@@ -70,6 +72,7 @@
 <main id="main" class="container">
   {% block content %}{% endblock %}
 </main>
+{% endblock %}
 
 <footer class="site-footer">
   <div class="container footer-inner">
@@ -125,7 +128,7 @@
   <div class="cookie-actions">
     <button class="button button-small" type="button" data-cookie-accept>Accept</button>
     <button class="button button-secondary button-small" type="button" data-cookie-reject>Essential only</button>
-    <button class="button button-secondary button-small" type="button" data-cookie-settings aria-expanded="false"
+    <button class="button button-secondary button-small" type="button" data-cookie-settings aria-expanded="true"
             aria-controls="cookie-detail">Settings</button>
   </div>
   <div class="cookie-detail" id="cookie-detail" data-cookie-detail hidden>

@@ -1,201 +1,429 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - {{ app_name }}{% endblock %}
-{% block head %}<script src="/static/js/dashboard.js" defer></script>{% endblock %}
+{% block title %}Live Camera Operations - {{ app_name }}{% endblock %}
+{% block body_attrs %} data-default-theme="dark"{% endblock %}
+{% block head %}
+<script src="/static/js/dashboard.js" defer></script>
+<script src="/static/js/voice.js" defer></script>
+<script src="/static/js/console.js" defer></script>
+{% endblock %}
 
-{% block content %}
-<section class="hero">
-  <h1>Dashboard</h1>
-  <p class="muted">Signed in as <strong>{{ user.display_name or user.email }}</strong> ({{ user.role }}).</p>
-</section>
-
-<section class="grid" aria-label="Overview">
-  <div class="card stat">
-    <span class="stat-value" data-count="devices">{{ counts.devices }}</span>
-    <span class="stat-label">Cameras</span>
-  </div>
-  <div class="card stat">
-    <span class="stat-value" data-count="events">{{ counts.events }}</span>
-    <span class="stat-label">Recorded events</span>
-  </div>
-  <div class="card stat">
-    <span class="stat-value" data-count="identities">{{ counts.identities }}</span>
-    <span class="stat-label">Enrolled identities</span>
-  </div>
-  <div class="card stat">
-    <span class="stat-value" data-count="conversations">{{ counts.conversations }}</span>
-    <span class="stat-label">Conversations</span>
-  </div>
-</section>
-
-<div class="grid-2">
-  <section class="card" aria-labelledby="devices-heading">
-    <h2 id="devices-heading">Cameras</h2>
-    <p class="loading" data-panel-status="devices">Loading your cameras…</p>
-    <div class="table-wrap">
-      <table data-devices-table hidden>
-        <caption class="sr-only">Registered cameras</caption>
-        <thead>
-          <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
-        </thead>
-        <tbody data-devices-body></tbody>
-      </table>
-    </div>
-    <div class="empty-state" data-devices-empty hidden>
-      <strong>No camera registered yet</strong>
-      Add your first webcam, phone or IP camera below.
+{% block body %}
+<div class="app-shell">
+  <aside class="con-sidebar">
+    <div class="con-brand">
+      <span class="con-brand-mark" aria-hidden="true">🛡</span>
+      <span>
+        <span class="con-brand-name">Owner AI</span>
+        <span class="con-brand-sub">Surveillance OS</span>
+      </span>
     </div>
 
-    <h3>Register a camera</h3>
-    <form class="stack" data-device-form novalidate>
-      <div class="field">
-        <label for="device-name">Name</label>
-        <input id="device-name" name="name" type="text" required maxlength="120" placeholder="Living room webcam">
-      </div>
-      <div class="field">
-        <label for="device-type">Type</label>
-        <select id="device-type" name="device_type">
-          <option value="webcam">Webcam (laptop)</option>
-          <option value="android_phone">Android phone</option>
-          <option value="wearable">Wearable camera</option>
-          <option value="ip_camera">IP camera</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="device-location">Location label</label>
-        <input id="device-location" name="location_label" type="text" maxlength="160" placeholder="Hallway">
-      </div>
-      <div class="field">
-        <label for="device-stream">Stream URL (only for IP cameras)</label>
-        <input id="device-stream" name="stream_url" type="url" maxlength="2048" placeholder="https://camera.example/snapshot.jpg">
-        <span class="hint">Private and link-local addresses are rejected unless the operator allow-listed them.</span>
-      </div>
-      <p class="alert alert-error" data-device-error role="alert" hidden></p>
-      <button class="button" type="submit" data-device-submit>Add camera</button>
-    </form>
-  </section>
+    <nav class="con-nav" aria-label="Console sections" data-console-nav>
+      <button type="button" data-console-tab="monitoring" aria-selected="true">
+        <span class="ico" aria-hidden="true">📹</span><span>Live Monitoring</span><span class="con-badge live">Live</span>
+      </button>
+      <button type="button" data-console-tab="copilot" aria-selected="false">
+        <span class="ico" aria-hidden="true">✦</span><span>AI Copilot &amp; Intel</span><span class="con-badge ai">AI</span>
+      </button>
+      <button type="button" data-console-tab="people" aria-selected="false">
+        <span class="ico" aria-hidden="true">👥</span><span>People Directory</span>
+      </button>
+      <button type="button" data-console-tab="events" aria-selected="false">
+        <span class="ico" aria-hidden="true">🕒</span><span>Events &amp; Alerts</span><span class="con-badge count" data-badge-events>0</span>
+      </button>
+      <button type="button" data-console-tab="devices" aria-selected="false">
+        <span class="ico" aria-hidden="true">📷</span><span>Camera Devices</span>
+      </button>
+      <button type="button" data-console-tab="settings" aria-selected="false">
+        <span class="ico" aria-hidden="true">⚙</span><span>Settings &amp; Audit</span>
+      </button>
+    </nav>
 
-  <section class="card" aria-labelledby="events-heading">
-    <h2 id="events-heading">Recent events</h2>
-    <p class="loading" data-panel-status="events">Loading events…</p>
-    <ul class="list-reset" data-events-list></ul>
-    <div class="empty-state" data-events-empty hidden>
-      <strong>No events yet</strong>
-      Events pushed by your cameras will appear here.
+    <div class="con-privacy">
+      <h3><span class="dot" aria-hidden="true"></span>Privacy Protocol Active</h3>
+      <p>Strangers stay anonymous. Only consenting enrolled profiles are verified, and no raw
+        footage is stored.</p>
     </div>
+  </aside>
 
-    <h3>Record an event manually</h3>
-    <form class="stack" data-event-form novalidate>
-      <div class="field">
-        <label for="event-device">Camera</label>
-        <select id="event-device" name="device_id" data-event-device required></select>
+  <div class="con-main">
+    <header class="con-topbar">
+      <div class="con-title">
+        <h1>Live Camera Operations</h1>
+        <p>Real-time multi-camera monitoring, motion and detection overlays</p>
       </div>
-      <div class="field">
-        <label for="event-kind">Kind</label>
-        <select id="event-kind" name="kind">
-          <option value="motion">Motion</option>
-          <option value="person">Person</option>
-          <option value="sound">Sound</option>
-          <option value="device_status">Device status</option>
-          <option value="note">Note</option>
-          <option value="alert">Alert</option>
-        </select>
+      <div class="con-topbar-right">
+        <span class="con-chip mono" data-console-clock>--:--:-- UTC</span>
+        <span class="con-chip ok" data-console-online><span class="dot" aria-hidden="true"></span>
+          <span data-online-count>0</span> Camera<span data-online-plural>s</span> Online</span>
+        <button class="con-chip" type="button" data-console-alerts aria-label="Show the latest alerts">
+          <span aria-hidden="true">🔔</span><span data-alert-count>0</span>
+        </button>
+        <span class="con-chip user">{{ user.display_name or user.email }} / {{ user.role | title }}</span>
+        <button class="con-chip" type="button" data-logout>Sign out</button>
+        <button class="con-chip" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch colour theme">
+          <span aria-hidden="true" data-theme-icon>☾</span>
+        </button>
       </div>
-      <div class="field">
-        <label for="event-summary">Summary</label>
-        <input id="event-summary" name="summary" type="text" maxlength="400" placeholder="Movement in the hallway">
-      </div>
-      <p class="alert alert-error" data-event-error role="alert" hidden></p>
-      <button class="button button-secondary" type="submit" data-event-submit>Record event</button>
-    </form>
-  </section>
+    </header>
 
-  <section class="card" aria-labelledby="identities-heading">
-    <h2 id="identities-heading">Enrolled identities</h2>
-    <p class="loading" data-panel-status="identities">Loading identities…</p>
-    <ul class="list-reset" data-identities-list></ul>
-    <div class="empty-state" data-identities-empty hidden>
-      <strong>No identity enrolled</strong>
-      Enrol your own face so the assistant can verify you - and only you.
+    <div class="con-workspace">
+      <div class="con-stage">
+        <div class="con-stage-head">
+          <div class="con-device-chip" data-stage-device>
+            <span class="dot" aria-hidden="true"></span>
+            <span data-stage-device-name>No camera selected</span>
+            <span class="tag" data-stage-device-type>webcam</span>
+          </div>
+          <button class="con-btn primary" type="button" data-console-open-copilot>
+            <span aria-hidden="true">🎙</span> Voice Copilot &amp; Commands
+          </button>
+          <button class="con-btn" type="button" data-voice-speak-toggle aria-pressed="true">
+            <span aria-hidden="true">🔊</span> ON
+          </button>
+          <button class="con-btn violet" type="button" data-console-open-panel>
+            <span aria-hidden="true">✦</span> AI Panel
+          </button>
+        </div>
+
+        <!-- ============================ LIVE MONITORING ============================ -->
+        <section class="con-pane active" id="pane-monitoring" aria-label="Live monitoring">
+          <div class="con-viewer" data-viewer>
+            <video data-live-video playsinline muted autoplay></video>
+            <div class="con-viewer-empty" data-viewer-empty>
+              <div>
+                <strong>Live feed is off</strong>
+                <span>Start the camera to stream this browser's webcam into the console.
+                  The frames are analysed in the browser and never recorded.</span>
+              </div>
+            </div>
+            <div class="con-pills">
+              <span class="con-pill live" data-pill-live><span class="dot" aria-hidden="true"></span>
+                <span data-pill-live-text>Live</span></span>
+              <span class="con-pill ai" data-pill-ai><span aria-hidden="true">◐</span>
+                AI Anonymous Tracking <span data-pill-ai-state>Off</span></span>
+              <span class="con-pill rec" data-pill-rec hidden>● Recording</span>
+            </div>
+            <div class="con-viewer-meta" data-viewer-meta>No device</div>
+            <div class="con-controls">
+              <button class="con-btn danger" type="button" data-console-pause>Pause</button>
+              <button class="con-btn danger" type="button" data-console-record>Start Smooth Record</button>
+              <button class="con-btn" type="button" data-console-snapshot>Snapshot</button>
+              <button class="con-btn" type="button" data-console-voice>
+                <span aria-hidden="true">🎙</span> Voice
+              </button>
+              <button class="con-btn primary" type="button" data-console-enroll>Quick Enroll from Feed</button>
+              <span class="con-engine" data-engine-info>Engine: detecting…</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================== AI COPILOT ============================== -->
+        <section class="con-pane" id="pane-copilot" aria-label="AI copilot">
+          <div class="con-card">
+            <div class="con-card-head">
+              <h2>Voice Copilot &amp; Commands</h2>
+              <span class="hint" data-voice-status role="status" aria-live="polite"></span>
+            </div>
+            <div class="con-card-body">
+              <div class="con-voice-bar">
+                <button class="con-mic" type="button" data-voice-mic aria-pressed="false"
+                        aria-label="Start voice input" disabled>
+                  <span aria-hidden="true">🎙</span>
+                </button>
+                <button class="con-btn" type="button" data-voice-consent>Enable voice input</button>
+                <label class="con-checkbox" for="voice-speak-panel">
+                  <input id="voice-speak-panel" type="checkbox" data-voice-speak-toggle checked>
+                  Read the answers aloud
+                </label>
+                <span class="status" data-voice-engine></span>
+              </div>
+              <p class="con-note" data-voice-notice>
+                <strong>Privacy notice:</strong> the audio is processed by your browser, never by this
+                server. Some browsers send the recording to their own vendor for transcription
+                (Chrome uses Google). Enable the microphone only if you are comfortable with that.
+              </p>
+              <p class="con-note" data-voice-unsupported hidden>
+                This browser does not support speech recognition - you can still type your questions.
+              </p>
+              <div class="chat-log" data-chat-log role="log" aria-live="polite" aria-label="Conversation"></div>
+              <form class="stack" data-chat-form novalidate>
+                <div class="con-field">
+                  <label for="chat-input">Message</label>
+                  <textarea id="chat-input" name="message" rows="2" maxlength="4000" required
+                            placeholder="Which camera saw activity today?"></textarea>
+                </div>
+                <p class="alert alert-error" data-chat-error role="alert" hidden></p>
+                <div class="con-btn-group">
+                  <button class="con-btn primary" type="submit" data-chat-submit>Send</button>
+                  <button class="con-btn ghost" type="button" data-console-voice-stop>Stop speaking</button>
+                </div>
+              </form>
+              <ul class="list-reset" data-chat-actions></ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- =========================== PEOPLE DIRECTORY =========================== -->
+        <section class="con-pane" id="pane-people" aria-label="People directory">
+          <div class="con-card">
+            <div class="con-card-head">
+              <h2>People Directory</h2>
+              <span class="hint">Consented profiles only</span>
+            </div>
+            <div class="con-card-body">
+              <p class="loading" data-panel-status="identities">Loading identities…</p>
+              <ul class="list-reset" data-identities-list></ul>
+              <div class="empty-state" data-identities-empty hidden>
+                <strong>No identity enrolled</strong>
+                Enrol your own face so the assistant can verify you - and only you.
+              </div>
+
+              <h3>Enrol an identity</h3>
+              <form class="stack" data-identity-form novalidate>
+                <div class="con-two">
+                  <div class="con-field">
+                    <label for="identity-label">Label</label>
+                    <input id="identity-label" name="label" type="text" required maxlength="120" placeholder="Owner">
+                  </div>
+                  <div class="con-field">
+                    <label for="identity-images">Pictures of yourself</label>
+                    <input id="identity-images" name="images" type="file" accept="image/jpeg,image/png" multiple
+                           data-identity-images>
+                  </div>
+                </div>
+                <div class="con-field">
+                  <label class="checkbox-label" for="identity-consent">
+                    <input id="identity-consent" name="consent" type="checkbox" required data-identity-consent>
+                    <span>I consent to storing an encrypted biometric template of my face for owner verification.</span>
+                  </label>
+                </div>
+                <p class="alert alert-error" data-identity-error role="alert" hidden></p>
+                <button class="con-btn primary" type="submit" data-identity-submit>Enrol</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================ EVENTS & ALERTS =========================== -->
+        <section class="con-pane" id="pane-events" aria-label="Events and alerts">
+          <div class="con-card">
+            <div class="con-card-head">
+              <h2>Events &amp; Alerts</h2>
+              <span class="hint" data-events-count>0 events</span>
+            </div>
+            <div class="con-card-body">
+              <p class="loading" data-panel-status="events">Loading events…</p>
+              <ul class="list-reset" data-events-list></ul>
+              <div class="empty-state" data-events-empty hidden>
+                <strong>No events yet</strong>
+                Events pushed by your cameras will appear here.
+              </div>
+
+              <h3>Record an event manually</h3>
+              <form class="stack" data-event-form novalidate>
+                <div class="con-two">
+                  <div class="con-field">
+                    <label for="event-device">Camera</label>
+                    <select id="event-device" name="device_id" data-event-device required></select>
+                  </div>
+                  <div class="con-field">
+                    <label for="event-kind">Kind</label>
+                    <select id="event-kind" name="kind">
+                      <option value="motion">Motion</option>
+                      <option value="person">Person</option>
+                      <option value="sound">Sound</option>
+                      <option value="device_status">Device status</option>
+                      <option value="note">Note</option>
+                      <option value="alert">Alert</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="con-field">
+                  <label for="event-summary">Summary</label>
+                  <input id="event-summary" name="summary" type="text" maxlength="400" placeholder="Movement in the hallway">
+                </div>
+                <p class="alert alert-error" data-event-error role="alert" hidden></p>
+                <button class="con-btn" type="submit" data-event-submit>Record event</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================ CAMERA DEVICES ============================ -->
+        <section class="con-pane" id="pane-devices" aria-label="Camera devices">
+          <div class="con-card">
+            <div class="con-card-head">
+              <h2>Camera Devices</h2>
+              <span class="hint" data-devices-count>0 registered</span>
+            </div>
+            <div class="con-card-body">
+              <p class="loading" data-panel-status="devices">Loading your cameras…</p>
+              <div class="table-wrap">
+                <table class="con-table" data-devices-table hidden>
+                  <caption class="sr-only">Registered cameras</caption>
+                  <thead>
+                    <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
+                  </thead>
+                  <tbody data-devices-body></tbody>
+                </table>
+              </div>
+              <div class="empty-state" data-devices-empty hidden>
+                <strong>No camera registered yet</strong>
+                Add your first webcam, phone or IP camera below.
+              </div>
+
+              <h3>Register a camera</h3>
+              <form class="stack" data-device-form novalidate>
+                <div class="con-two">
+                  <div class="con-field">
+                    <label for="device-name">Name</label>
+                    <input id="device-name" name="name" type="text" required maxlength="120" placeholder="Living room webcam">
+                  </div>
+                  <div class="con-field">
+                    <label for="device-type">Type</label>
+                    <select id="device-type" name="device_type">
+                      <option value="webcam">Webcam (laptop)</option>
+                      <option value="android_phone">Android phone</option>
+                      <option value="wearable">Wearable camera</option>
+                      <option value="ip_camera">IP camera</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="con-two">
+                  <div class="con-field">
+                    <label for="device-location">Location label</label>
+                    <input id="device-location" name="location_label" type="text" maxlength="160" placeholder="Hallway">
+                  </div>
+                  <div class="con-field">
+                    <label for="device-stream">Stream URL (IP cameras)</label>
+                    <input id="device-stream" name="stream_url" type="url" maxlength="2048" placeholder="https://camera.example/snapshot.jpg">
+                  </div>
+                </div>
+                <p class="alert alert-error" data-device-error role="alert" hidden></p>
+                <button class="con-btn primary" type="submit" data-device-submit>Add camera</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- =========================== SETTINGS & AUDIT =========================== -->
+        <section class="con-pane" id="pane-settings" aria-label="Settings and audit">
+          <div class="con-two">
+            <div class="con-card">
+              <div class="con-card-head"><h2>Security</h2></div>
+              <div class="con-card-body">
+                <h3>Change your password</h3>
+                <form class="stack" data-password-form novalidate>
+                  <div class="con-field">
+                    <label for="current-password">Current password</label>
+                    <input id="current-password" name="current_password" type="password" autocomplete="current-password"
+                           required maxlength="256">
+                  </div>
+                  <div class="con-field">
+                    <label for="new-password">New password</label>
+                    <input id="new-password" name="new_password" type="password" autocomplete="new-password"
+                           required minlength="12" maxlength="256">
+                  </div>
+                  <p class="alert alert-error" data-password-error role="alert" hidden></p>
+                  <p class="alert" data-password-status role="status" hidden></p>
+                  <button class="con-btn" type="submit" data-password-submit>Update password</button>
+                </form>
+
+                <h3>Two-factor authentication</h3>
+                <form class="stack" data-mfa-form novalidate>
+                  <div class="con-field">
+                    <label for="mfa-code">Verification code</label>
+                    <input id="mfa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                           maxlength="12" minlength="6" placeholder="123456">
+                  </div>
+                  <p class="alert alert-error" data-mfa-error role="alert" hidden></p>
+                  <p class="alert" data-mfa-status role="status" hidden></p>
+                  <div class="con-btn-group">
+                    <button class="con-btn ghost" type="button" data-mfa-setup>Generate a secret</button>
+                    <button class="con-btn" type="submit" data-mfa-submit>Enable two-factor</button>
+                  </div>
+                </form>
+
+                <h3>Active sessions</h3>
+                <ul class="list-reset" data-sessions-list></ul>
+              </div>
+            </div>
+
+            <div class="con-card">
+              <div class="con-card-head"><h2>Overview</h2></div>
+              <div class="con-card-body">
+                <div class="con-telemetry">
+                  <div class="con-tile"><div class="k">Cameras</div><div class="v neutral" data-count="devices">{{ counts.devices }}</div></div>
+                  <div class="con-tile"><div class="k">Events</div><div class="v neutral" data-count="events">{{ counts.events }}</div></div>
+                  <div class="con-tile"><div class="k">Identities</div><div class="v neutral" data-count="identities">{{ counts.identities }}</div></div>
+                  <div class="con-tile"><div class="k">Conversations</div><div class="v neutral" data-count="conversations">{{ counts.conversations }}</div></div>
+                </div>
+                <h3>Quick search</h3>
+                <form class="stack" data-search-form action="/dashboard" method="get" role="search">
+                  <div class="con-field">
+                    <label for="console-search">Search your cameras, events and conversations</label>
+                    <input id="console-search" name="q" type="search" maxlength="120" autocomplete="off"
+                           data-search-input placeholder="Camera, event, conversation…">
+                  </div>
+                </form>
+                <ul class="list-reset" data-console-search-results></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================================ RAIL ================================ -->
+      <aside class="con-rail">
+        <div class="con-card">
+          <div class="con-card-head">
+            <h2>Camera Health &amp; Telemetry</h2>
+            <span class="hint">0 ms log buffer</span>
+          </div>
+          <div class="con-card-body">
+            <div class="con-telemetry">
+              <div class="con-tile">
+                <div class="k">Frame rate</div>
+                <div class="v" data-telemetry="fps">--.- FPS</div>
+              </div>
+              <div class="con-tile">
+                <div class="k">People tracked</div>
+                <div class="v neutral" data-telemetry="people">0 People</div>
+              </div>
+              <div class="con-tile">
+                <div class="k">AI confidence</div>
+                <div class="v" data-telemetry="confidence">--.-%</div>
+              </div>
+              <div class="con-tile">
+                <div class="k">Attention</div>
+                <div class="v neutral" data-telemetry="attention">Not measured</div>
+              </div>
+            </div>
+            <div class="con-feature">
+              <span class="k">◐ Adaptive lighting</span>
+              <span class="v" data-telemetry="lighting">--</span>
+            </div>
+            <div class="con-feature">
+              <span class="k">⟳ Head orientation</span>
+              <span class="v" data-telemetry="orientation">Not available</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="con-card">
+          <div class="con-card-head">
+            <h2>Real-Time Activity</h2>
+            <button class="hint con-btn ghost" type="button" data-console-show-events>View All</button>
+          </div>
+          <div class="con-card-body tight">
+            <div class="con-activity" data-activity-feed>
+              <div class="con-empty">No activity yet.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
-
-    <h3>Enrol an identity</h3>
-    <form class="stack" data-identity-form novalidate>
-      <div class="field">
-        <label for="identity-label">Label</label>
-        <input id="identity-label" name="label" type="text" required maxlength="120" placeholder="Owner">
-      </div>
-      <div class="field">
-        <label for="identity-images">Pictures of yourself</label>
-        <input id="identity-images" name="images" type="file" accept="image/jpeg,image/png" multiple
-               data-identity-images>
-        <span class="hint">Up to five images. The face detector needs a clear, frontal picture.</span>
-      </div>
-      <div class="field">
-        <label for="identity-consent" class="checkbox-label">
-          <input id="identity-consent" name="consent" type="checkbox" required data-identity-consent>
-          <span>I consent to storing an encrypted biometric template of my face for owner verification.</span>
-        </label>
-      </div>
-      <p class="alert alert-error" data-identity-error role="alert" hidden></p>
-      <button class="button" type="submit" data-identity-submit>Enrol</button>
-    </form>
-  </section>
-
-  <section class="card" aria-labelledby="assistant-heading">
-    <h2 id="assistant-heading">Assistant</h2>
-    <p class="muted small">The assistant only sees your own camera metadata. Ask about events, cameras or your setup.</p>
-    <div class="chat-log" data-chat-log role="log" aria-live="polite" aria-label="Conversation"></div>
-    <form class="stack" data-chat-form novalidate>
-      <div class="field">
-        <label for="chat-input">Message</label>
-        <textarea id="chat-input" name="message" rows="2" maxlength="4000" required
-                  placeholder="Which camera saw activity today?"></textarea>
-      </div>
-      <p class="alert alert-error" data-chat-error role="alert" hidden></p>
-      <div class="dialog-actions">
-        <button class="button" type="submit" data-chat-submit>Send</button>
-      </div>
-    </form>
-    <ul class="list-reset" data-chat-actions></ul>
-  </section>
-
-  <section class="card" aria-labelledby="sessions-heading">
-    <h2 id="sessions-heading">Security</h2>
-    <h3>Change your password</h3>
-    <form class="stack" data-password-form novalidate>
-      <div class="field">
-        <label for="current-password">Current password</label>
-        <input id="current-password" name="current_password" type="password" autocomplete="current-password"
-               required maxlength="256">
-      </div>
-      <div class="field">
-        <label for="new-password">New password</label>
-        <input id="new-password" name="new_password" type="password" autocomplete="new-password"
-               required minlength="12" maxlength="256">
-      </div>
-      <p class="alert alert-error" data-password-error role="alert" hidden></p>
-      <p class="alert" data-password-status role="status" hidden></p>
-      <button class="button button-secondary" type="submit" data-password-submit>Update password</button>
-    </form>
-
-    <h3>Active sessions</h3>
-    <ul class="list-reset" data-sessions-list></ul>
-
-    <h3>Two-factor authentication</h3>
-    <p class="muted small">Protect the account with an authenticator app (TOTP).</p>
-    <form class="stack" data-mfa-form novalidate>
-      <div class="field">
-        <label for="mfa-code">Verification code</label>
-        <input id="mfa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
-               maxlength="12" minlength="6" placeholder="123456">
-      </div>
-      <p class="alert alert-error" data-mfa-error role="alert" hidden></p>
-      <p class="alert" data-mfa-status role="status" hidden></p>
-      <div class="dialog-actions">
-        <button class="button button-secondary button-small" type="button" data-mfa-setup>Generate a secret</button>
-        <button class="button button-small" type="submit" data-mfa-submit>Enable two-factor</button>
-      </div>
-    </form>
-  </section>
+  </div>
 </div>
 {% endblock %}

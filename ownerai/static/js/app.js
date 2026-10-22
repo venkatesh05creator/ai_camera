@@ -135,6 +135,26 @@
     }
   }
 
+  function currentTheme() {
+    var stored = document.documentElement.getAttribute("data-theme");
+    if (stored) {
+      return stored;
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function setTheme(theme) {
+    if (theme !== "light" && theme !== "dark") {
+      return;
+    }
+    try {
+      window.localStorage.setItem(THEME_KEY, theme);
+    } catch (error) {
+      /* storage may be disabled - the theme still works for this page */
+    }
+    applyTheme(theme);
+  }
+
   function initTheme() {
     var stored = null;
     try {
@@ -142,24 +162,17 @@
     } catch (error) {
       stored = null;
     }
-    applyTheme(stored || "system");
+    // Pages may request a different default (the console is dark by default).
+    var pageDefault = document.body ? document.body.dataset.defaultTheme : "";
+    applyTheme(stored || pageDefault || "system");
 
     var toggle = $("[data-theme-toggle]");
     if (!toggle) {
       return;
     }
     toggle.addEventListener("click", function () {
-      var current = document.documentElement.getAttribute("data-theme");
-      if (!current) {
-        current = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      }
-      var next = current === "dark" ? "light" : "dark";
-      try {
-        window.localStorage.setItem(THEME_KEY, next);
-      } catch (error) {
-        /* storage may be disabled - the theme still works for this page */
-      }
-      applyTheme(next);
+      var next = currentTheme() === "dark" ? "light" : "dark";
+      setTheme(next);
       announce(next === "dark" ? "Dark theme enabled" : "Light theme enabled");
     });
   }
@@ -597,6 +610,20 @@
   }
 
   /* ------------------------------------------------------------- boot */
+  // The shared helpers are published immediately (not only on DOMContentLoaded)
+  // so that other scripts - for example the voice interface - can rely on
+  // them regardless of the order in which the deferred scripts run.
+  window.OwnerAI = {
+    apiFetch: apiFetch,
+    readJson: readJson,
+    describeError: describeError,
+    setStatus: setStatus,
+    announce: announce,
+    applyTheme: applyTheme,
+    setTheme: setTheme,
+    currentTheme: currentTheme
+  };
+
   document.addEventListener("DOMContentLoaded", function () {
     // Guard against a second initialisation (e.g. a synthetic event) - the
     // listeners below would otherwise be bound twice and every toggle would
@@ -616,6 +643,15 @@
     initForgotForm();
     initResetForm();
     initVerifyForm();
-    window.OwnerAI = { apiFetch: apiFetch, readJson: readJson, describeError: describeError, setStatus: setStatus };
+    window.OwnerAI = {
+      apiFetch: apiFetch,
+      readJson: readJson,
+      describeError: describeError,
+      setStatus: setStatus,
+      announce: announce,
+      applyTheme: applyTheme,
+      setTheme: setTheme,
+      currentTheme: currentTheme
+    };
   });
 })();

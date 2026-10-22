@@ -118,7 +118,19 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
         return RedirectResponse(url="/login?next=/dashboard", status_code=303)
     context = _base_context(request, db)
     context["counts"] = count_resources(db, session.user)
-    return _render(request, "dashboard.html", context)
+    # The voice interface needs the microphone.  The permission is granted for
+    # this page only - every other page keeps ``microphone=()``.
+    return _render(
+        request,
+        "dashboard.html",
+        context,
+        headers={
+            "Permissions-Policy": (
+                "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), "
+                "accelerometer=(), gyroscope=(), magnetometer=(), interest-cohort=()"
+            )
+        },
+    )
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -143,10 +155,17 @@ def health() -> JSONResponse:
     )
 
 
-def _render(request: Request, template: str, context: Dict[str, Any]) -> HTMLResponse:
+def _render(
+    request: Request,
+    template: str,
+    context: Dict[str, Any],
+    headers: Optional[Dict[str, str]] = None,
+) -> HTMLResponse:
     # The cookie must be attached to the response that is actually returned -
     # FastAPI only merges the headers of the injected ``response`` object when
     # the endpoint returns a plain body.
     page = templates.TemplateResponse(request, template, context)
     ensure_csrf_cookie(request, page, get_settings(), context.get("session"))
+    for name, value in (headers or {}).items():
+        page.headers[name] = value
     return page

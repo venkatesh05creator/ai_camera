@@ -127,10 +127,10 @@ def add_faces_live(model_name: str):
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Add faces to the recognition datastore using live camera')
-    parser.add_argument('--model', type=str, required=True,
-                      help='Model configuration name (e.g., facenet, facenet_lite)')
+    parser.add_argument('--model', type=str, default='facenet',
+                      help='Model configuration name (default: facenet)')
     return parser.parse_args()
 
 if __name__ == "__main__":
-    # args = parse_arguments()
-    add_faces_live("facenet")
+    args = parse_arguments()
+    add_faces_live(args.model)

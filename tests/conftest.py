@@ -47,17 +47,21 @@ def _engine():
     reset_engine()
 
 
-@pytest.fixture(autouse=True)
-def _fresh_database(_engine):
-    """Recreate the schema before every test."""
-    Base.metadata.drop_all(_engine)
-    Base.metadata.create_all(_engine)
-    yield
+def _reset_database(engine) -> None:
+    """Drop and recreate every table so that no state leaks between tests."""
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
 
 
 @pytest.fixture()
-def app():
-    """A fresh application instance per test."""
+def app(_engine):
+    """A fresh application instance and a freshly reset database per test.
+
+    The reset happens *here* (and not in an autouse fixture) so that it is
+    guaranteed to run before any test client - and therefore before any
+    session or account is created.
+    """
+    _reset_database(_engine)
     return create_app()
 
 

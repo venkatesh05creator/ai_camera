@@ -18,7 +18,7 @@ biometric templates of the owner and private AI conversations.  The relevant
 threat actors are:
 
 | Actor | Goal | Primary control |
-|---|---|---|
+| --- | --- | --- |
 | Anonymous internet user | Read private data, take over an account | Authentication, rate limits, generic errors |
 | Authenticated low-privilege user | Read another account's data, gain privileges | Server-side RBAC + ownership checks (IDOR protection) |
 | Compromised browser (XSS) | Steal the session or read page data | Strict CSP without inline script, `HttpOnly` session cookie, CSRF tokens, output encoding |
@@ -78,7 +78,7 @@ Roles: `owner`, `admin`, `trusted`, `viewer`.  The full matrix lives in
 ## 4. API surface
 
 | Method & path | Authentication | Authorisation | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET /` | none | - | Landing page, sets the CSRF cookie |
 | `GET /login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`, `/docs` | none | - | Static forms |
 | `GET /health` | none | - | Minimal probe, no internal details |
@@ -136,7 +136,7 @@ Roles: `owner`, `admin`, `trusted`, `viewer`.  The full matrix lives in
 ## 6. Rate limiting and quotas
 
 | Scope | Limit (default) | Window |
-|---|---|---|
+| --- | --- | --- |
 | `login` | 5 | 300 s |
 | `register` | 3 | 3600 s |
 | `password_reset` | 3 | 3600 s |
@@ -154,7 +154,7 @@ deployment share the same state.
 
 Set on every response by `ownerai/middleware.py`:
 
-```
+```http
 Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none';
   frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob:;
   media-src 'self' blob:; font-src 'self'; style-src 'self'; script-src 'self';
@@ -287,17 +287,17 @@ new enrolment path encrypts the template) and the old embeddings deleted.
 
 ## 13. Operator checklist before going live
 
-- [ ] `OWNERAI_SECRET_KEY` and `OWNERAI_BIOMETRIC_ENCRYPTION_KEY` generated
+* [ ] `OWNERAI_SECRET_KEY` and `OWNERAI_BIOMETRIC_ENCRYPTION_KEY` generated
       with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-- [ ] `OWNERAI_APP_ENV=production`, `OWNERAI_HTTPS_ONLY=true`,
+* [ ] `OWNERAI_APP_ENV=production`, `OWNERAI_HTTPS_ONLY=true`,
       `OWNERAI_HSTS_ENABLED=true`.
-- [ ] `OWNERAI_TRUSTED_HOSTS` set to the public host names.
-- [ ] TLS terminated at the edge, `OWNERAI_TRUST_PROXY_HEADERS=true` only when
+* [ ] `OWNERAI_TRUSTED_HOSTS` set to the public host names.
+* [ ] TLS terminated at the edge, `OWNERAI_TRUST_PROXY_HEADERS=true` only when
       the proxy is the only client.
-- [ ] Database file or server outside the web root, with restricted file
+* [ ] Database file or server outside the web root, with restricted file
       permissions.
-- [ ] `OWNERAI_REQUIRE_EMAIL_VERIFICATION=true` and a real SMTP backend.
-- [ ] `OWNERAI_AI_API_KEY` set (or the offline provider deliberately chosen).
-- [ ] Backups encrypted, retention and restore tested.
-- [ ] `pip-audit`, `bandit`, `ruff` and the test-suite green in CI.
-- [ ] Log shipping configured; logs contain no personal data.
+* [ ] `OWNERAI_REQUIRE_EMAIL_VERIFICATION=true` and a real SMTP backend.
+* [ ] `OWNERAI_AI_API_KEY` set (or the offline provider deliberately chosen).
+* [ ] Backups encrypted, retention and restore tested.
+* [ ] `pip-audit`, `bandit`, `ruff` and the test-suite green in CI.
+* [ ] Log shipping configured; logs contain no personal data.
