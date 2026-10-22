@@ -80,6 +80,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, active
             </button>
           );
         })}
+
+        {/* 3D Holographic Iron Man HUD Link */}
+        <a
+          href="/hud"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%)',
+            color: '#38bdf8',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            fontWeight: 600,
+            fontSize: '0.88rem',
+            textDecoration: 'none',
+            boxShadow: '0 0 12px rgba(56, 189, 248, 0.15)',
+            marginTop: '8px',
+          }}
+        >
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
+          <span style={{ flex: 1 }}>Holographic HUD</span>
+          <span style={{ background: 'rgba(56, 189, 248, 0.25)', color: '#38bdf8', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>3D HUD</span>
+        </a>
       </nav>
 
       {/* Privacy Guarantee Footer */}

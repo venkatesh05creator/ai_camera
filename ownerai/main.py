@@ -34,6 +34,7 @@ from .routers import (
     contact,
     devices,
     events,
+    hud,
     identities,
     legacy,
     pages,
@@ -145,6 +146,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(admin.router)
     app.include_router(legacy.router)
     app.include_router(contact.router)
+    app.include_router(hud.router)
     app.include_router(pages.router)
 
     if STATIC_DIR.is_dir():

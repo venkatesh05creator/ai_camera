@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from ..crypto import redact_pii
 from ..models import CameraEvent, Conversation, Device, Message, User
-from ..rbac import DEVICE_READ, DEVICE_WRITE, EVENT_READ, has_permission
+from ..rbac import CHAT_READ, CHAT_WRITE, DEVICE_READ, DEVICE_WRITE, EVENT_READ, has_permission
 from ..settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,26 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
     "pause_device": {
         "description": "Pause a camera. Requires an explicit confirmation by the owner.",
         "permission": DEVICE_WRITE,
+        "mutating": True,
+    },
+    "get_stock_analysis": {
+        "description": "Analyze a stock, index, or crypto ticker with technical signals.",
+        "permission": CHAT_READ,
+        "mutating": False,
+    },
+    "get_market_overview": {
+        "description": "Spoken overview of leading market indices and crypto assets.",
+        "permission": CHAT_READ,
+        "mutating": False,
+    },
+    "get_mail_brief": {
+        "description": "Executive briefing of unread priority emails.",
+        "permission": CHAT_READ,
+        "mutating": False,
+    },
+    "system_action": {
+        "description": "Trigger an executive system action or application launch.",
+        "permission": CHAT_WRITE,
         "mutating": True,
     },
 }
@@ -174,9 +194,89 @@ class OpenAICompatibleProvider:
         return AIResponse(text=str(text), tokens=tokens, provider=self.name)
 
 
+_GROQ_COOLDOWN_UNTIL: float = 0.0
+
+
+class GroqProvider:
+    """Client for Groq LLM inference with automatic HTTP 429 rate limit failover."""
+
+    name = "groq"
+
+    def __init__(self, settings: Settings) -> None:
+        import os
+
+        self._settings = settings
+        key = (
+            os.environ.get("GROQ_API_KEY", "").strip()
+            or (settings.ai_api_key.get_secret_value() if settings.ai_api_key else "")
+        )
+        if not key:
+            raise AIError("Groq provider requested without a configured API key")
+        self._api_key = key
+        self._base = "https://api.groq.com/openai/v1"
+        self._models = [settings.ai_model, "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
+
+    def complete(self, messages: List[Dict[str, str]], *, max_tokens: int) -> AIResponse:
+        global _GROQ_COOLDOWN_UNTIL
+        import re
+        import time
+
+        now = time.time()
+        if now < _GROQ_COOLDOWN_UNTIL:
+            logger.info("Groq in rate-limit cooldown (%.1fs remaining), falling back to offline", _GROQ_COOLDOWN_UNTIL - now)
+            return OfflineProvider().complete(messages, max_tokens=max_tokens)
+
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        for model in self._models:
+            payload = {
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": 0.3,
+            }
+            try:
+                with httpx.Client(timeout=self._settings.ai_timeout_seconds) as client:
+                    response = client.post(f"{self._base}/chat/completions", json=payload, headers=headers)
+                    if response.status_code == 429:
+                        cooldown_secs = 60
+                        err_text = response.text.lower()
+                        m = re.search(r"try again in\s*(\d+)m\s*([0-9]+(?:\.[0-9]+)?)s", err_text)
+                        if m:
+                            cooldown_secs = int(float(m.group(1)) * 60 + float(m.group(2))) + 2
+                        else:
+                            m2 = re.search(r"try again in\s*([0-9]+(?:\.[0-9]+)?)s", err_text)
+                            if m2:
+                                cooldown_secs = int(float(m2.group(1))) + 2
+                        _GROQ_COOLDOWN_UNTIL = time.time() + cooldown_secs
+                        logger.warning("Groq rate limit hit. Cooldown set for %d seconds. Falling back to offline.", cooldown_secs)
+                        return OfflineProvider().complete(messages, max_tokens=max_tokens)
+
+                    response.raise_for_status()
+                    data = response.json()
+                    text = data["choices"][0]["message"]["content"]
+                    tokens = int((data.get("usage") or {}).get("total_tokens") or 0)
+                    return AIResponse(text=str(text), tokens=tokens, provider=self.name)
+            except Exception as exc:
+                logger.warning("Groq model %s attempt failed: %s", model, exc)
+                continue
+
+        return OfflineProvider().complete(messages, max_tokens=max_tokens)
+
+
 def build_provider(settings: Optional[Settings] = None) -> AIProvider:
     """Instantiate the configured provider (falls back to the offline one)."""
     settings = settings or get_settings()
+    import os
+
+    if os.environ.get("GROQ_API_KEY") or getattr(settings, "ai_provider", None) == "groq":
+        try:
+            return GroqProvider(settings)
+        except AIError:
+            pass
+
     if settings.ai_provider == "openai_compatible" and settings.ai_api_key:
         try:
             return OpenAICompatibleProvider(settings)
@@ -335,6 +435,26 @@ def execute_tool(
         device.status = "paused"
         db.commit()
         return {"tool": tool_name, "status": "ok", "result": {"device_id": device.id, "status": device.status}}
+
+    if tool_name == "get_stock_analysis":
+        from backend.app.services.market_service import analyze_ticker
+        symbol = str(arguments.get("symbol", "^NSEI"))
+        data = analyze_ticker(symbol)
+        return {"tool": tool_name, "status": "ok", "result": data or {}}
+
+    if tool_name == "get_market_overview":
+        from backend.app.services.market_service import market_briefing
+        return {"tool": tool_name, "status": "ok", "result": {"briefing": market_briefing()}}
+
+    if tool_name == "get_mail_brief":
+        from backend.app.services.system_actions import get_mail_briefing
+        return {"tool": tool_name, "status": "ok", "result": {"briefing": get_mail_briefing()}}
+
+    if tool_name == "system_action":
+        from backend.app.services.system_actions import launch_application
+        target = str(arguments.get("target", "terminal"))
+        res = launch_application(target)
+        return {"tool": tool_name, "status": "ok", "result": res}
 
     raise AIError("unsupported tool")  # pragma: no cover - defensive
 

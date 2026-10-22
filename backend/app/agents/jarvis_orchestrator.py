@@ -105,7 +105,97 @@ class JarvisOrchestrator:
                     query=q,
                 )
 
-        # 6. Fallback to General AIOrchestrator pipeline (covers news, weather, calculations, small talk, Wikipedia)
+        # 6. Stock Market Intelligence & Technical Analysis
+        if any(k in q_lower for k in ["stock", "market", "nifty", "sensex", "crypto", "bitcoin", "buy or sell", "should i buy"]):
+            from ..services.market_service import DEFAULT_TICKERS, analyze_ticker, market_briefing
+            for sym, name in DEFAULT_TICKERS.items():
+                if name.lower() in q_lower or sym.lower().replace(".ns", "") in q_lower:
+                    data = analyze_ticker(sym)
+                    if data:
+                        direction = "up" if data["pct_change"] >= 0 else "down"
+                        ans = (
+                            f"{data['name']} is trading at {data['currency']}{data['price']:,}, "
+                            f"{direction} {abs(data['pct_change'])}%. "
+                            f"Technical signal: {data['signal']}. {data['reason']}"
+                        )
+                        return AgentResult(
+                            agent_type=AgentType.RESEARCH,
+                            status="success",
+                            answer=ans,
+                            speech_text=ans,
+                            execution_time_ms=(time.time() - t0) * 1000.0,
+                        )
+            overview = "Here is the current market overview: " + market_briefing()
+            return AgentResult(
+                agent_type=AgentType.RESEARCH,
+                status="success",
+                answer=overview,
+                speech_text=overview,
+                execution_time_ms=(time.time() - t0) * 1000.0,
+            )
+
+        # 7. Executive System Actions (Apps, YouTube, WhatsApp, Mail, Volume)
+        from ..services.system_actions import (
+            get_mail_briefing,
+            launch_application,
+            search_google,
+            search_youtube,
+            send_whatsapp_web,
+            set_system_volume,
+        )
+
+        # WhatsApp Web message
+        m_wa = re.search(r"(?:send|reply|message)\s+(?:on\s+whatsapp\s+to|whatsapp\s+to|to)\s+(.+?)(?:\s+saying\s+(.+))?$", q_lower)
+        if "whatsapp" in q_lower and m_wa:
+            contact = m_wa.group(1).strip()
+            msg = m_wa.group(2).strip() if m_wa.group(2) else "I received your message, will get back shortly."
+            res_wa = send_whatsapp_web(contact, msg)
+            return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_wa["message"], speech_text=res_wa["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+
+        # YouTube playback
+        m_yt = re.search(r"(?:play|search|find|open)\s+(.+?)\s+(?:on|in)\s+youtube", q_lower)
+        if m_yt:
+            query_yt = m_yt.group(1).strip()
+            res_yt = search_youtube(query_yt)
+            return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_yt["message"], speech_text=res_yt["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+
+        # Web Search
+        m_ggl = re.match(r"(?:search|google)(?: for)?\s+(.+)", q_lower)
+        if m_ggl and not any(k in q_lower for k in ["youtube", "event", "camera", "history"]):
+            query_ggl = m_ggl.group(1).strip()
+            res_ggl = search_google(query_ggl)
+            return AgentResult(agent_type=AgentType.RESEARCH, status="success", answer=res_ggl["message"], speech_text=res_ggl["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+
+        # App Launch
+        m_app = re.match(r"(?:please\s+)?(?:open|launch|start)\s+(.+)", q_lower)
+        if m_app and not any(k in q_lower for k in ["camera", "stream", "snapshot", "recording", "rule", "alert", "whatsapp"]):
+            app_name = m_app.group(1).strip()
+            res_app = launch_application(app_name)
+            return AgentResult(
+                agent_type=AgentType.ACTION,
+                status="success" if res_app["success"] else "error",
+                answer=res_app["message"],
+                speech_text=res_app["message"],
+                execution_time_ms=(time.time() - t0) * 1000.0,
+            )
+
+        # Unread Mail Briefing
+        if any(k in q_lower for k in ["mail brief", "check mail", "read emails", "inbox summary", "unread emails"]):
+            brief = get_mail_briefing()
+            return AgentResult(agent_type=AgentType.RESEARCH, status="success", answer=brief, speech_text=brief, execution_time_ms=(time.time() - t0) * 1000.0)
+
+        # System Volume Control
+        if any(k in q_lower for k in ["volume up", "louder", "turn it up"]):
+            res_vol = set_system_volume("louder")
+            return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_vol["message"], speech_text=res_vol["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+        if any(k in q_lower for k in ["volume down", "quieter", "turn it down"]):
+            res_vol = set_system_volume("quieter")
+            return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_vol["message"], speech_text=res_vol["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+        if q_lower in ["mute", "mute volume", "mute the volume", "silence"]:
+            res_vol = set_system_volume("mute")
+            return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_vol["message"], speech_text=res_vol["message"], execution_time_ms=(time.time() - t0) * 1000.0)
+
+        # 8. Fallback to General AIOrchestrator pipeline (covers news, weather, calculations, small talk, Wikipedia)
         from ..services.ai_orchestrator import AIOrchestrator
         ctx = AIOrchestrator.process_request(
             query=q,

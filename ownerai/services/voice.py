@@ -124,6 +124,21 @@ _KEYWORD_INTENTS: List[tuple[str, str]] = [
     ("open the dashboard", "open_dashboard"),
     ("go to the dashboard", "open_dashboard"),
     ("show the dashboard", "open_dashboard"),
+    ("open the hud", "open_hud"),
+    ("open hud", "open_hud"),
+    ("show the hud", "open_hud"),
+    ("open workplace", "open_hud"),
+    ("stock market report", "market_report"),
+    ("market briefing", "market_report"),
+    ("how is the market", "market_report"),
+    ("market report", "market_report"),
+    ("check emails", "mail_brief"),
+    ("read unread emails", "mail_brief"),
+    ("unread emails", "mail_brief"),
+    ("what time is it", "current_time"),
+    ("what is the time", "current_time"),
+    ("what date is today", "current_time"),
+    ("what is today's date", "current_time"),
     ("open the administration", "open_admin"),
     ("go to the administration", "open_admin"),
     ("show the administration", "open_admin"),
@@ -163,6 +178,7 @@ _LEAD_IN_WORDS = frozenset(
         "want",
         "to",
         "hey",
+        "jarvis",
         "ok",
         "okay",
         "so",
@@ -302,6 +318,38 @@ def build_command(
             answer="Opening the dashboard.",
             client_resolved=True,
             action={"type": "navigate", "url": "/dashboard"},
+        )
+    if intent == "open_hud":
+        return VoiceCommand(
+            intent="open_hud",
+            answer="Initializing Holographic HUD.",
+            client_resolved=True,
+            action={"type": "navigate", "url": "/hud"},
+        )
+    if intent == "market_report":
+        from backend.app.services.market_service import market_briefing
+        brief = market_briefing()
+        return VoiceCommand(
+            intent="market_report",
+            answer=brief,
+            speak=brief,
+        )
+    if intent == "mail_brief":
+        from backend.app.services.system_actions import get_mail_briefing
+        mail = get_mail_briefing()
+        return VoiceCommand(
+            intent="mail_brief",
+            answer=mail,
+            speak=mail,
+        )
+    if intent == "current_time":
+        from backend.app.services.system_actions import get_current_time_and_date
+        td = get_current_time_and_date()
+        ans = f"It is currently {td['time']} on {td['date']}."
+        return VoiceCommand(
+            intent="current_time",
+            answer=ans,
+            speak=ans,
         )
     if intent == "open_admin":
         return VoiceCommand(
