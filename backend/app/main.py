@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api.v1.ai import router as ai_router
@@ -147,6 +148,27 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         return {"status": "healthy", "version": "2.0.0"}
+
+    # Holographic Iron Man HUD (JARVIS 3D Workplace)
+    @app.get("/hud", response_class=HTMLResponse)
+    def serve_hud():
+        """Serves the 3D Holographic Iron Man HUD interface."""
+        candidates = [
+            Path("ownerai/templates/hud.html"),
+            Path(__file__).resolve().parent.parent.parent / "ownerai" / "templates" / "hud.html",
+        ]
+        for p in candidates:
+            if p.exists():
+                return HTMLResponse(content=p.read_text(encoding="utf-8"))
+        return HTMLResponse("<h2>Holographic HUD template not found</h2>", status_code=404)
+
+    @app.get("/api/state")
+    @app.get("/api/hud/state")
+    @app.get(f"{api_prefix}/hud/state")
+    def get_hud_state_endpoint(lv: int = 0):
+        """Returns live system telemetry, audio visualizer wave, and market quotes for the HUD."""
+        from .services.hud_service import get_hud_state_data
+        return JSONResponse(content=get_hud_state_data(lv=lv))
 
     # Mount Web build if present
     dist_dir = Path("web/dist")

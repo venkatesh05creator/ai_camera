@@ -126,16 +126,211 @@ def search_google(query: str) -> Dict[str, Any]:
     return {"success": True, "message": f"Searching Google for {query}.", "url": url}
 
 
-def send_whatsapp_web(contact_name: str, message: str = "Hello from Jarvis") -> Dict[str, Any]:
-    """Automates opening WhatsApp Web with a drafted message."""
+def send_whatsapp_web(contact_name: Optional[str] = None, message: str = "Hello from Jarvis") -> Dict[str, Any]:
+    """Automates opening WhatsApp Web with a drafted message or root web app."""
     clean_msg = urllib.parse.quote(message.strip())
-    url = f"https://web.whatsapp.com/send?text={clean_msg}"
+    if contact_name:
+        url = f"https://web.whatsapp.com/send?text={clean_msg}"
+        msg = f"Opening WhatsApp to message {contact_name}."
+    else:
+        url = "https://web.whatsapp.com"
+        msg = "Opening WhatsApp Web."
     open_url(url)
     return {
         "success": True,
-        "message": f"Opening WhatsApp to message {contact_name}.",
+        "message": msg,
         "url": url,
     }
+
+
+def try_executive_action(query: str) -> Optional[Dict[str, Any]]:
+    """Deterministic executive action dispatcher for Project JARVIS.
+
+    Handles:
+    - WhatsApp Web messaging & direct app launch
+    - YouTube search & video playback
+    - Google web search
+    - Application launching (VS Code, Chrome, Spotify, Calculator, Notepad, etc.)
+    - Stock market quotes & technical BUY/SELL analysis
+    - Unread mail briefings
+    - Volume control (louder, quieter, mute)
+    - Date and time inquiries
+    """
+    raw_q = query.strip()
+    q_lower = raw_q.lower().strip(" .,!?")
+
+    # 1. WhatsApp Web Automation
+    m_wa = re.search(
+        r"(?:send|message|text|reply)\s+(?:on\s+whatsapp\s+to|whatsapp\s+to|to)\s+(.+?)(?:\s+(?:saying|with\s+message)\s+(.+))?$",
+        q_lower,
+    )
+    if "whatsapp" in q_lower and m_wa:
+        contact = m_wa.group(1).strip()
+        msg = m_wa.group(2).strip() if m_wa.group(2) else "Hello, I will get back to you shortly."
+        res = send_whatsapp_web(contact, msg)
+        return {
+            "handled": True,
+            "answer": f"💬 **WhatsApp Web**\n\nOpening WhatsApp Web to message **{contact}**: *\"{msg}\"*.",
+            "speech_text": f"Opening WhatsApp to message {contact}.",
+            "action": "open_url",
+            "action_payload": {"url": res["url"], "label": f"WhatsApp: {contact}"},
+        }
+
+    if "whatsapp" in q_lower:
+        res = send_whatsapp_web(None)
+        return {
+            "handled": True,
+            "answer": "💬 **WhatsApp Web**\n\nOpening WhatsApp Web for you in your browser.",
+            "speech_text": "Opening WhatsApp for you.",
+            "action": "open_url",
+            "action_payload": {"url": "https://web.whatsapp.com", "label": "Opening WhatsApp Web"},
+        }
+
+    # 2. YouTube Music / Search
+    m_yt = re.search(r"(?:play|search|find|open)\s+(.+?)\s+(?:on|in)\s+youtube", q_lower)
+    if m_yt:
+        target = m_yt.group(1).strip()
+        res = search_youtube(target)
+        return {
+            "handled": True,
+            "answer": f"▶️ **YouTube Playback**\n\nPlaying *\"{target}\"* on YouTube.",
+            "speech_text": f"Playing {target} on YouTube.",
+            "action": "open_url",
+            "action_payload": {"url": res["url"], "label": f"YouTube: {target}"},
+        }
+
+    if "youtube" in q_lower and any(k in q_lower for k in ["open", "launch", "start", "visit"]):
+        open_url("https://www.youtube.com")
+        return {
+            "handled": True,
+            "answer": "▶️ **YouTube**\n\nOpening YouTube in your browser.",
+            "speech_text": "Opening YouTube.",
+            "action": "open_url",
+            "action_payload": {"url": "https://www.youtube.com", "label": "YouTube"},
+        }
+
+    # 3. Google Search
+    m_goog = re.match(r"^(?:search|google)(?:\s+for)?\s+(.+)", q_lower)
+    if m_goog and not any(k in q_lower for k in ["chrome", "maps", "drive", "calendar", "mail"]):
+        target = m_goog.group(1).strip()
+        res = search_google(target)
+        return {
+            "handled": True,
+            "answer": f"🔍 **Google Search**\n\nSearching Google for *\"{target}\"*.",
+            "speech_text": f"Searching Google for {target}.",
+            "action": "open_url",
+            "action_payload": {"url": res["url"], "label": f"Google: {target}"},
+        }
+
+    # 4. App Launch
+    m_app = re.match(r"^(?:please\s+)?(?:can you\s+)?(?:open|launch|start)\s+(.+)", q_lower)
+    if m_app:
+        target = m_app.group(1).strip(" .!?")
+        if target not in ["camera", "stream", "hud", "dossier", "snapshot", "recording", "quick enroll"]:
+            res = launch_application(target)
+            return {
+                "handled": True,
+                "answer": f"🚀 **Application Launcher**\n\n{res['message']}",
+                "speech_text": res["message"],
+                "action": "open_url" if res.get("target") else "app_launch",
+                "action_payload": {"url": res.get("target"), "app": target, "label": res["message"]},
+            }
+
+    # 5. Stock Market & Financial Intel
+    if any(k in q_lower for k in ("stock", "stocks", "market", "nifty", "sensex", "crypto", "bitcoin", "btc", "eth", "aapl", "tsla", "buy or sell")):
+        from .market_service import DEFAULT_TICKERS, analyze_ticker, market_briefing
+        for sym, name in DEFAULT_TICKERS.items():
+            clean_sym = sym.lower().replace(".ns", "")
+            if name.lower() in q_lower or clean_sym in q_lower:
+                data = analyze_ticker(sym)
+                if data:
+                    direction = "up" if data["pct_change"] >= 0 else "down"
+                    ans = (
+                        f"📈 **{data['name']} ({data['symbol']})**\n\n"
+                        f"• Price: **{data['currency']}{data['price']:,}** ({'+' if data['pct_change'] >= 0 else ''}{data['pct_change']}%)\n"
+                        f"• Technical Signal: **{data['signal']}**\n"
+                        f"• Analysis: {data['reason']}\n"
+                        f"• 5-Day Momentum: {data['momentum']}%\n\n"
+                        f"*Telemetry calculated via 5/15 SMA moving average crossovers.*"
+                    )
+                    speech = f"{data['name']} is trading at {data['currency']}{data['price']:,}, {direction} {abs(data['pct_change'])}%. Technical signal: {data['signal']}."
+                    return {
+                        "handled": True,
+                        "answer": ans,
+                        "speech_text": speech,
+                        "action": "market_briefing",
+                        "action_payload": {"ticker": data},
+                    }
+        brief = market_briefing()
+        return {
+            "handled": True,
+            "answer": f"📈 **Financial Market Overview**\n\n{brief}\n\n*Updated live via Yahoo Finance telemetry.*",
+            "speech_text": f"Here is the market overview. {brief}",
+            "action": "market_briefing",
+            "action_payload": {"briefing": brief},
+        }
+
+    # 6. Mail Briefing
+    if any(k in q_lower for k in ("mail brief", "check mail", "read emails", "inbox summary", "unread emails", "check my emails")):
+        mail = get_mail_briefing()
+        return {
+            "handled": True,
+            "answer": f"📬 **Executive Mail Briefing**\n\n{mail}",
+            "speech_text": mail,
+            "action": "mail_briefing",
+            "action_payload": {"briefing": mail},
+        }
+
+    # 7. Volume Controls
+    if any(k in q_lower for k in ("volume up", "louder", "turn up the volume")):
+        res = set_system_volume("louder")
+        return {
+            "handled": True,
+            "answer": "🔊 **System Audio**\n\nVolume increased.",
+            "speech_text": "Volume increased.",
+            "action": "volume_control",
+            "action_payload": {"volume_action": "louder", "label": "Volume Increased"},
+        }
+    if any(k in q_lower for k in ("volume down", "quieter", "turn down the volume")):
+        res = set_system_volume("quieter")
+        return {
+            "handled": True,
+            "answer": "🔉 **System Audio**\n\nVolume decreased.",
+            "speech_text": "Volume decreased.",
+            "action": "volume_control",
+            "action_payload": {"volume_action": "quieter", "label": "Volume Decreased"},
+        }
+    if any(k in q_lower for k in ("mute volume", "mute audio", "mute sound", "mute system", "mute speaker")):
+        res = set_system_volume("mute")
+        return {
+            "handled": True,
+            "answer": "🔇 **System Audio**\n\nSystem audio mute toggled.",
+            "speech_text": "System audio muted.",
+            "action": "volume_control",
+            "action_payload": {"volume_action": "mute", "label": "Audio Muted"},
+        }
+
+    # 8. Date and Time
+    if any(k in q_lower for k in ("what time is it", "current time", "what is the time", "tell me the time")):
+        td = get_current_time_and_date()
+        return {
+            "handled": True,
+            "answer": f"🕒 **Current Time**\n\nIt is currently **{td['time']}**.",
+            "speech_text": f"The current time is {td['time']}.",
+            "action": None,
+            "action_payload": {},
+        }
+    if any(k in q_lower for k in ("what date is it", "today's date", "todays date", "what is the date")):
+        td = get_current_time_and_date()
+        return {
+            "handled": True,
+            "answer": f"📅 **Today's Date**\n\nToday is **{td['date']}**.",
+            "speech_text": f"Today is {td['date']}.",
+            "action": None,
+            "action_payload": {},
+        }
+
+    return None
 
 
 def get_mail_briefing() -> str:

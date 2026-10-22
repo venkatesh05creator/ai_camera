@@ -680,6 +680,24 @@ export const VoiceCopilotModal: React.FC<VoiceCopilotModalProps> = ({
       } else if (res.action === 'unmute') {
         onToggleVoiceMute(false);
         executedActionDesc = 'Voice Copilot Active';
+      } else if (res.action === 'open_url') {
+        if (res.action_payload?.url) {
+          window.open(res.action_payload.url, '_blank');
+        }
+        playChime('action');
+        executedActionDesc = res.action_payload?.label || 'Opened Link';
+      } else if (res.action === 'app_launch') {
+        playChime('action');
+        executedActionDesc = res.action_payload?.label || 'Application Launched';
+      } else if (res.action === 'market_briefing') {
+        playChime('action');
+        executedActionDesc = 'Market Telemetry Updated';
+      } else if (res.action === 'mail_briefing') {
+        playChime('action');
+        executedActionDesc = 'Mail Briefing Retrieved';
+      } else if (res.action === 'volume_control') {
+        playChime('action');
+        executedActionDesc = res.action_payload?.label || 'Volume Adjusted';
       }
 
       if (executedActionDesc) {

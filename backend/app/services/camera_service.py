@@ -274,10 +274,9 @@ camera_manager = CameraStreamManager()
 
 
 
-def ensure_default_webcam(db: Session, user_id: str) -> Camera:
-    """Ensure at least one default laptop webcam is registered for the user."""
-    stmt = select(Camera).where(Camera.owner_user_id == user_id, Camera.source_type == "webcam")
-    existing = db.scalars(stmt).first()
+def ensure_default_webcam(db: Session, user_id: str) -> Optional[Camera]:
+    """Ensure at least one default laptop webcam is registered if database has no cameras."""
+    existing = db.scalars(select(Camera)).first()
     if existing:
         return existing
 

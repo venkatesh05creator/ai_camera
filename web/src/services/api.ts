@@ -40,7 +40,11 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.detail || `Request failed with status ${res.status}`);
     }
-    return (await res.json()) as T;
+    if (res.status === 204 || res.headers.get('content-length') === '0') {
+      return {} as T;
+    }
+    const text = await res.text();
+    return text ? (JSON.parse(text) as T) : ({} as T);
   } catch (err: any) {
     console.warn(`API Error [${endpoint}]:`, err.message);
     throw err;

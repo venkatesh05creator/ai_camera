@@ -52,6 +52,7 @@ class AIIntent(str, Enum):
     CAMERA_MANAGEMENT = "camera_management"
     BIOMETRIC_ENROLLMENT = "biometric_enrollment"
     SECURITY_ALERTS = "security_alerts"
+    EXECUTIVE_ACTION = "executive_action"
     MULTI_PART_QUESTION = "multi_part_question"
     UNSUPPORTED_OR_AMBIGUOUS = "unsupported_or_ambiguous"
 
@@ -253,6 +254,10 @@ class IntentClassifier:
         ):
             return AIIntent.CAMERA_VISION_SCENE, 0.96, raw_q, None
 
+        # 10B. EXECUTIVE ACTIONS (WhatsApp, YouTube, App Launcher, Stocks, Mail, Volume, Time)
+        if cls._is_executive_action(raw_q):
+            return AIIntent.EXECUTIVE_ACTION, 0.98, raw_q, None
+
         # 11. GENERAL CONVERSATION (Greetings, Farewells, Gratitude, Small Talk, Identity, Conversational Echoes)
         if cls._is_conversational(raw_q, words):
             return AIIntent.GENERAL_CONVERSATION, 0.90, raw_q, None
@@ -268,6 +273,38 @@ class IntentClassifier:
 
         # 14. FACTUAL KNOWLEDGE (Default for informational inquiries)
         return AIIntent.FACTUAL_KNOWLEDGE, 0.85, raw_q, None
+
+    @classmethod
+    def _is_executive_action(cls, raw_q: str) -> bool:
+        q = raw_q.lower().strip(" .,!?")
+        # 1. WhatsApp
+        if "whatsapp" in q:
+            return True
+        # 2. YouTube
+        if "youtube" in q or re.search(r"\bplay\s+.+\s+(?:on|in)\s+youtube\b", q):
+            return True
+        # 3. Google search
+        if re.match(r"^(?:search|google)(?:\s+for)?\s+(.+)", q) and not any(k in q for k in ["chrome", "maps", "drive", "calendar", "mail"]):
+            return True
+        # 4. App Launch
+        m_app = re.match(r"^(?:please\s+)?(?:can you\s+)?(?:open|launch|start)\s+(.+)", q)
+        if m_app:
+            target = m_app.group(1).strip(" .!?")
+            if target not in ["camera", "stream", "hud", "dossier", "snapshot", "recording", "quick enroll"]:
+                return True
+        # 5. Financial Markets & Stocks
+        if any(k in q for k in ("stock", "stocks", "market", "nifty", "sensex", "crypto", "bitcoin", "btc", "eth", "aapl", "tsla", "buy or sell")):
+            return True
+        # 6. Mail Briefing
+        if any(k in q for k in ("mail brief", "check mail", "read emails", "inbox summary", "unread emails", "check my emails")):
+            return True
+        # 7. Volume Control
+        if any(k in q for k in ("volume up", "louder", "volume down", "quieter", "mute volume", "mute audio", "mute sound")):
+            return True
+        # 8. Time / Date inquiry
+        if any(k in q for k in ("what time is it", "current time", "what is the time", "tell me the time", "what date is it", "today's date", "todays date", "what is the date")):
+            return True
+        return False
 
     @classmethod
     def _is_multi_part(cls, raw_q: str) -> bool:
@@ -1341,6 +1378,34 @@ class AIOrchestrator:
                 )
                 ctx.answer = v_res.answer
                 ctx.speech_text = v_res.speech_text
+                ctx.execution_status = "success"
+
+        # ---------------------------------------------------------------------
+        # 10B. EXECUTIVE ACTIONS (WhatsApp, YouTube, App Launcher, Stocks, Mail, Volume, Time)
+        # ---------------------------------------------------------------------
+        elif intent == AIIntent.EXECUTIVE_ACTION:
+            from .system_actions import try_executive_action
+            exec_res = try_executive_action(ctx.query)
+            if exec_res and exec_res.get("handled"):
+                ctx.answer = exec_res.get("answer", "")
+                ctx.speech_text = exec_res.get("speech_text", "")
+                ctx.action = exec_res.get("action")
+                ctx.action_payload = exec_res.get("action_payload", {})
+                ctx.execution_status = "success"
+                try:
+                    from .hud_service import update_hud_activity
+                    tool_desc = ctx.action or "Executive Action"
+                    update_hud_activity(
+                        user_query=ctx.query,
+                        assistant_reply=ctx.speech_text or ctx.answer,
+                        tool_name=tool_desc,
+                        state="idle",
+                    )
+                except Exception:
+                    pass
+            else:
+                ctx.answer = "Executive command recognized, but target action could not be resolved."
+                ctx.speech_text = "I could not resolve the executive target."
                 ctx.execution_status = "success"
 
         # ---------------------------------------------------------------------
