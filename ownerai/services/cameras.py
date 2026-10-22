@@ -179,3 +179,14 @@ def verify_device_signature(
         return False
     expected = sign_device_request(secret, timestamp, nonce, body)
     return hmac.compare_digest(expected, signature or "")
+
+
+def purge_expired_nonces(db, max_age_seconds: int = 300) -> int:
+    """Delete device nonces older than the maximum allowable drift window."""
+    from datetime import datetime, timedelta, timezone
+    from ..models import DeviceNonce
+
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
+    removed = db.query(DeviceNonce).filter(DeviceNonce.created_at < cutoff).delete()
+    db.commit()
+    return int(removed)

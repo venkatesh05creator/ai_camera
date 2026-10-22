@@ -162,6 +162,52 @@ def validate_stream_url(url: Optional[str], source_type: str = "webcam") -> tupl
     if any(b in netloc or b in hostname for b in blocked_hosts) or hostname.startswith("169.254."):
         return False, "Access to cloud metadata and link-local addresses is prohibited (SSRF protection)"
 
+    # Robust IP representation parsing (decimal integer, hex, octal, standard dotted quad)
+    import ipaddress
+    import socket
+
+    ip_obj = None
+    try:
+        ip_obj = ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            if hostname.isdigit():
+                ip_obj = ipaddress.ip_address(int(hostname))
+            elif hostname.startswith("0x"):
+                ip_obj = ipaddress.ip_address(int(hostname, 16))
+            elif hostname.startswith("0") and len(hostname) > 1 and not hostname.startswith("0."):
+                ip_obj = ipaddress.ip_address(int(hostname, 8))
+        except (ValueError, OverflowError):
+            pass
+
+    if ip_obj is not None:
+        if (
+            ip_obj.is_link_local
+            or ip_obj.is_reserved
+            or str(ip_obj).startswith("169.254.")
+            or str(ip_obj) in blocked_hosts
+        ):
+            return False, "Access to cloud metadata and link-local addresses is prohibited (SSRF protection)"
+    else:
+        # Resolve hostname to detect DNS-based metadata / link-local redirection
+        try:
+            infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+            for info in infos:
+                addr_str = info[4][0]
+                try:
+                    addr_obj = ipaddress.ip_address(addr_str)
+                    if (
+                        addr_obj.is_link_local
+                        or addr_obj.is_reserved
+                        or str(addr_obj).startswith("169.254.")
+                        or str(addr_obj) in blocked_hosts
+                    ):
+                        return False, "Access to cloud metadata and link-local addresses is prohibited (SSRF protection)"
+                except ValueError:
+                    continue
+        except socket.gaierror:
+            pass
+
     return True, "Valid stream URL"
 
 

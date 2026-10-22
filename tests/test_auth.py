@@ -277,3 +277,82 @@ def test_disabled_account_cannot_sign_in(client):
         headers=auth_headers(client),
     )
     assert response.status_code == 403
+
+
+def test_mfa_backup_codes_recovery_and_single_use(client):
+    """Backup codes can authenticate when TOTP is unavailable, and are strictly single-use."""
+    from ownerai.totp import totp
+
+    register(client, "mfa_user@example.test")
+    setup_res = client.post("/api/auth/mfa/setup", headers=auth_headers(client))
+    assert setup_res.status_code == 200
+    secret = setup_res.json()["secret"]
+
+    code = totp(secret)
+    enable_res = client.post("/api/auth/mfa/enable", json={"code": code}, headers=auth_headers(client))
+    assert enable_res.status_code == 200
+    backup_codes = enable_res.json()["backup_codes"]
+    assert len(backup_codes) == 8
+
+    # Logout
+    client.post("/api/auth/logout", headers=auth_headers(client))
+    client.get("/login")
+
+    # Login -> MFA required
+    login_res = client.post(
+        "/api/auth/login",
+        json={"email": "mfa_user@example.test", "password": "Correct-Horse-9!"},
+        headers=auth_headers(client),
+    )
+    assert login_res.status_code == 200
+    assert login_res.json()["mfa_required"] is True
+
+    # Authenticate using the first backup code
+    chosen_backup = backup_codes[0]
+    mfa_res = client.post("/api/auth/mfa/verify", json={"code": chosen_backup}, headers=auth_headers(client))
+    assert mfa_res.status_code == 200
+    assert mfa_res.json()["mfa_required"] is False
+
+    # Logout and login again
+    client.post("/api/auth/logout", headers=auth_headers(client))
+    client.get("/login")
+    login_res2 = client.post(
+        "/api/auth/login",
+        json={"email": "mfa_user@example.test", "password": "Correct-Horse-9!"},
+        headers=auth_headers(client),
+    )
+    assert login_res2.status_code == 200
+
+    # Replaying the same backup code must fail
+    replay_res = client.post("/api/auth/mfa/verify", json={"code": chosen_backup}, headers=auth_headers(client))
+    assert replay_res.status_code == 401
+
+
+def test_mfa_totp_replay_prevention(client):
+    """The same TOTP code cannot be replayed within the validity window."""
+    from ownerai.totp import totp
+
+    register(client, "replay_totp@example.test")
+    setup_res = client.post("/api/auth/mfa/setup", headers=auth_headers(client))
+    secret = setup_res.json()["secret"]
+
+    code = totp(secret)
+    client.post("/api/auth/mfa/enable", json={"code": code}, headers=auth_headers(client))
+    client.post("/api/auth/logout", headers=auth_headers(client))
+    client.get("/login")
+
+    # Login
+    client.post(
+        "/api/auth/login",
+        json={"email": "replay_totp@example.test", "password": "Correct-Horse-9!"},
+        headers=auth_headers(client),
+    )
+
+    # First TOTP verify succeeds
+    fresh_code = totp(secret)
+    first_res = client.post("/api/auth/mfa/verify", json={"code": fresh_code}, headers=auth_headers(client))
+    assert first_res.status_code == 200
+
+    # Replay same code immediately -> rejected
+    second_res = client.post("/api/auth/mfa/verify", json={"code": fresh_code}, headers=auth_headers(client))
+    assert second_res.status_code == 401

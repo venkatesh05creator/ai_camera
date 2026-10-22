@@ -53,7 +53,7 @@ from ..sessions import (
     set_session_cookies,
 )
 from ..settings import get_settings
-from ..totp import backup_codes, generate_secret, provisioning_uri, verify_totp
+from ..totp import backup_codes, generate_secret, provisioning_uri, verify_totp, verify_totp_with_step
 
 logger = logging.getLogger(__name__)
 
@@ -331,16 +331,40 @@ def verify_mfa(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="multi-factor authentication is not active")
 
     secret = decrypt_bytes(user.mfa_secret_encrypted, aad=b"mfa-secret").decode("utf-8")
-    if not verify_totp(
-        secret, payload.code, step_seconds=settings.totp_step_seconds, window=settings.totp_window
-    ):
+    cleaned_code = payload.code.strip()
+    is_valid_totp, matched_step = verify_totp_with_step(
+        secret,
+        cleaned_code,
+        step_seconds=settings.totp_step_seconds,
+        window=settings.totp_window,
+        last_step=user.last_totp_step,
+    )
+
+    used_backup_code = False
+    if is_valid_totp:
+        user.last_totp_step = matched_step
+        db.commit()
+    elif user.mfa_backup_codes_hash:
+        # Check single-use backup recovery codes
+        submitted_hash = hash_token(cleaned_code)
+        active_backup_hashes = [h for h in user.mfa_backup_codes_hash.split("|") if h]
+        if submitted_hash in active_backup_hashes:
+            active_backup_hashes.remove(submitted_hash)
+            user.mfa_backup_codes_hash = "|".join(active_backup_hashes) if active_backup_hashes else None
+            db.commit()
+            used_backup_code = True
+        else:
+            audit.record(db, action="auth.mfa", actor_user_id=user.id, outcome="failure", ip=_client_ip(request))
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid verification code")
+    else:
         audit.record(db, action="auth.mfa", actor_user_id=user.id, outcome="failure", ip=_client_ip(request))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid verification code")
 
     # The authentication level changed - rotate the session identifier.
     new_session, token = rotate_or_update(session, db, request, settings)
     set_session_cookies(response, token, new_session.csrf_token, settings)
-    audit.record(db, action="auth.mfa", actor_user_id=user.id, ip=_client_ip(request))
+    audit_action = "auth.mfa_backup_code" if used_backup_code else "auth.mfa"
+    audit.record(db, action=audit_action, actor_user_id=user.id, ip=_client_ip(request))
     return {"user": UserOut.model_validate(user).model_dump(mode="json"), "mfa_required": False}
 
 

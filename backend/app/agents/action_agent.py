@@ -55,7 +55,7 @@ class ActionAgent:
     def confirm_approval(cls, approval_token: str) -> Optional[ActionApprovalRequest]:
         """Validate and grant an active approval request."""
         req = cls._active_approvals.get(approval_token)
-        if req and time.time() <= req.expires_at:
+        if req and not req.is_consumed and time.time() <= req.expires_at:
             req.is_approved = True
             return req
         return None
@@ -119,7 +119,7 @@ class ActionAgent:
                 )
             else:
                 valid_approval = cls.confirm_approval(approval_token)
-                if not valid_approval:
+                if not valid_approval or valid_approval.is_consumed or (time.time() > valid_approval.expires_at):
                     return AgentResult(
                         agent_type=AgentType.ACTION,
                         status="error",
@@ -128,6 +128,36 @@ class ActionAgent:
                         speech_text="Approval token has expired.",
                         execution_time_ms=(time.time() - t0) * 1000.0,
                     )
+                if valid_approval.action_name != tool_name:
+                    return AgentResult(
+                        agent_type=AgentType.ACTION,
+                        status="error",
+                        error=f"Approval token was issued for '{valid_approval.action_name}', not '{tool_name}'.",
+                        answer="⚠️ Action blocked: Approval token does not match requested action.",
+                        speech_text="Approval token does not match requested action.",
+                        execution_time_ms=(time.time() - t0) * 1000.0,
+                    )
+                if valid_approval.parameters != parameters:
+                    return AgentResult(
+                        agent_type=AgentType.ACTION,
+                        status="error",
+                        error="Approval token parameters do not match requested execution parameters.",
+                        answer="⚠️ Action blocked: Action parameters do not match approved parameters.",
+                        speech_text="Action parameters do not match approved parameters.",
+                        execution_time_ms=(time.time() - t0) * 1000.0,
+                    )
+                if actor_user_id and valid_approval.actor_user_id and valid_approval.actor_user_id != actor_user_id:
+                    return AgentResult(
+                        agent_type=AgentType.ACTION,
+                        status="error",
+                        error="Cross-user approval token execution rejected.",
+                        answer="⚠️ Action blocked: Approval token was not issued for your account.",
+                        speech_text="Approval token was not issued for your account.",
+                        execution_time_ms=(time.time() - t0) * 1000.0,
+                    )
+                # Consume approval token so it cannot be replayed
+                valid_approval.is_consumed = True
+                cls._active_approvals.pop(approval_token, None)
 
         # Execute allowlisted handler
         try:

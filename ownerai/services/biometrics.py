@@ -337,11 +337,16 @@ def verify_owner(
 
 
 def purge_expired_templates(db: Session, settings: Optional[Settings] = None) -> int:
-    """Delete templates whose retention period has expired."""
+    """Delete templates whose retention period has expired.
+    
+    Idempotent: skips identities whose consent was already withdrawn or purged.
+    """
     settings = settings or get_settings()
     now = datetime.now(timezone.utc)
     removed = 0
     for template in db.scalars(select(EnrolledIdentity)).all():
+        if template.withdrawn_at is not None:
+            continue
         expires = template.expires_at
         if expires is None:
             continue

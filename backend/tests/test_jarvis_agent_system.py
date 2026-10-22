@@ -210,6 +210,34 @@ def test_action_agent_least_privilege_and_approval_flow():
     assert approved_res.status == "success"
     assert approved_res.action_payload["result"]["deleted"] is True
 
+    # 5. Replaying the consumed approval token is strictly blocked
+    replay_res = ActionAgent.execute_tool("delete_all_biometrics", {}, approval_token=token)
+    assert replay_res.status == "error"
+    assert "expired or is invalid" in replay_res.answer.lower()
+
+    # 6. Action binding: tokens cannot be hijacked to execute a different action
+    ActionAgent.register_tool(
+        ToolDefinition(
+            name="export_database_archive",
+            description="Export full db dump",
+            permission_level=PermissionLevel.SENSITIVE_CONSEQUENTIAL,
+            parameters_schema={},
+            handler=lambda x=1: {"exported": True},
+            requires_approval=True,
+        )
+    )
+    req2 = ActionAgent.request_approval("export_database_archive", {"scope": "all"}, "Test export")
+    token2 = req2.approval_token
+
+    hijack_res = ActionAgent.execute_tool("delete_all_biometrics", {}, approval_token=token2)
+    assert hijack_res.status == "error"
+    assert "does not match requested action" in hijack_res.answer.lower()
+
+    # 7. Parameter tampering: token cannot be used with tampered parameters
+    tamper_res = ActionAgent.execute_tool("export_database_archive", {"scope": "tampered_scope"}, approval_token=token2)
+    assert tamper_res.status == "error"
+    assert "parameter" in tamper_res.answer.lower()
+
 
 # =============================================================================
 # 8. SecurityAgent Health Diagnostic

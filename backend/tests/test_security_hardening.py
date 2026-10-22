@@ -130,6 +130,16 @@ def test_stream_url_ssrf_and_redaction():
     ok, msg = validate_stream_url("http://169.254.170.2/v2/metadata", source_type="rtsp")
     assert ok is False
 
+    # Decimal integer IP format for 169.254.169.254 blocked
+    ok, msg = validate_stream_url("http://2852039166/cam", source_type="ip_camera")
+    assert ok is False
+    assert "ssrf" in msg.lower() or "cloud metadata" in msg.lower()
+
+    # Hex IP format for 169.254.169.254 blocked
+    ok, msg = validate_stream_url("http://0xa9fea9fe/cam", source_type="ip_camera")
+    assert ok is False
+    assert "ssrf" in msg.lower() or "cloud metadata" in msg.lower()
+
     # Credential redaction
     redacted = redact_stream_url("rtsp://admin:secretPass123@192.168.1.100:554/stream1")
     assert "secretPass123" not in redacted

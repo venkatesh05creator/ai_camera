@@ -77,6 +77,7 @@ class User(Base):
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     mfa_secret_encrypted: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     mfa_backup_codes_hash: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    last_totp_step: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     failed_login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -54,6 +54,31 @@ def totp(
     return hotp(secret, counter, digits=digits)
 
 
+def verify_totp_with_step(
+    secret: str,
+    code: str,
+    *,
+    step_seconds: int = DEFAULT_STEP_SECONDS,
+    window: int = 1,
+    digits: int = DIGITS,
+    timestamp: float | None = None,
+    last_step: int | None = None,
+) -> tuple[bool, int | None]:
+    """Verify a TOTP code and return (is_valid, matched_step). Prevents replay if last_step is provided."""
+    if not code or not code.isdigit():
+        return False, None
+    now = time.time() if timestamp is None else timestamp
+    counter = int(now // step_seconds)
+    for offset in range(-window, window + 1):
+        step = counter + offset
+        if last_step is not None and step <= last_step:
+            continue
+        candidate = hotp(secret, step, digits=digits)
+        if constant_time_equals(candidate, code.zfill(digits)):
+            return True, step
+    return False, None
+
+
 def verify_totp(
     secret: str,
     code: str,
@@ -64,15 +89,10 @@ def verify_totp(
     timestamp: float | None = None,
 ) -> bool:
     """Verify a TOTP code allowing ``window`` steps of clock drift."""
-    if not code or not code.isdigit():
-        return False
-    now = time.time() if timestamp is None else timestamp
-    counter = int(now // step_seconds)
-    for offset in range(-window, window + 1):
-        candidate = hotp(secret, counter + offset, digits=digits)
-        if constant_time_equals(candidate, code.zfill(digits)):
-            return True
-    return False
+    valid, _ = verify_totp_with_step(
+        secret, code, step_seconds=step_seconds, window=window, digits=digits, timestamp=timestamp
+    )
+    return valid
 
 
 def provisioning_uri(secret: str, account: str, issuer: str) -> str:

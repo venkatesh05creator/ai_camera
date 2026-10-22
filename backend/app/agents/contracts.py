@@ -63,11 +63,12 @@ class ActionApprovalRequest:
     created_at: float = field(default_factory=time.time)
     expires_at: float = field(default_factory=lambda: time.time() + 300.0)  # 5 min expiry
     is_approved: bool = False
+    is_consumed: bool = False
     actor_user_id: Optional[str] = None
 
     def is_valid(self) -> bool:
-        """Check if approval is within expiration time and approved."""
-        return self.is_approved and (time.time() <= self.expires_at)
+        """Check if approval is within expiration time, approved, and not yet consumed."""
+        return self.is_approved and (not self.is_consumed) and (time.time() <= self.expires_at)
 
 
 @dataclass
