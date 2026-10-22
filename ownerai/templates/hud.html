@@ -23,28 +23,121 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
-  height: 100%;
+  min-height: 100vh;
   background: #010408;
   color: var(--tx);
   font: 12px/1.4 Menlo, "SF Mono", "Fira Code", Consolas, monospace;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   user-select: none;
 }
 #bg {
   position: fixed;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
 }
 #app {
-  position: fixed;
-  inset: 0;
+  min-height: 100vh;
+  position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(310px, 26vw) 1fr minmax(310px, 26vw);
+  grid-template-columns: minmax(300px, 1fr) minmax(380px, 1.4fr) minmax(300px, 1fr);
   grid-template-rows: auto 1fr;
   gap: 14px;
   padding: 12px 16px;
+  box-sizing: border-box;
   animation: hudFlicker 8s infinite;
+}
+@media (max-width: 1100px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow-y: auto;
+  }
+  #center { min-height: 420px; }
+}
+
+.hud-chat-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cd);
+}
+.hud-input-field {
+  flex: 1;
+  background: rgba(2, 12, 24, 0.85);
+  border: 1px solid var(--cd);
+  border-radius: 4px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.hud-input-field:focus {
+  border-color: var(--c);
+  box-shadow: 0 0 8px var(--cd);
+}
+.hud-btn {
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid var(--c);
+  color: var(--c);
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hud-btn:hover {
+  background: var(--c);
+  color: #000;
+  box-shadow: 0 0 12px var(--c);
+}
+.hud-mic-btn {
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid var(--cd);
+  color: var(--c);
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.hud-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--cd);
+  color: var(--dim);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 9.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hud-chip:hover {
+  border-color: var(--c);
+  color: #fff;
+  background: rgba(6, 182, 212, 0.15);
 }
 @keyframes hudFlicker {
   0%, 100% { opacity: 1; }
@@ -434,9 +527,20 @@ header::after {
     <div class="kv" id="kv"></div>
   </div>
 
-  <div class="panel grow">
+  <div class="panel grow" style="display: flex; flex-direction: column;">
     <h2>TELEMETRY LOGS & CHAT</h2>
-    <div id="chat"></div>
+    <div id="chat" style="flex: 1; min-height: 120px; max-height: 240px; overflow-y: auto;"></div>
+    <form class="hud-chat-input-bar" id="hud-form" onsubmit="window.hudSubmit && window.hudSubmit(event)">
+      <button class="hud-mic-btn" id="hud-mic-btn" type="button" title="Speak to JARVIS (Spacebar)" onclick="window.hudToggleMic && window.hudToggleMic()">🎙️</button>
+      <input class="hud-input-field" id="hud-cmd-input" type="text" placeholder="Speak or type command to JARVIS..." autocomplete="off" />
+      <button class="hud-btn" id="hud-send-btn" type="submit">SEND</button>
+    </form>
+    <div class="hud-chips">
+      <button type="button" class="hud-chip" onclick="window.hudSend && window.hudSend('Jarvis, status report.')">🛡️ Status</button>
+      <button type="button" class="hud-chip" onclick="window.hudSend && window.hudSend('Open WhatsApp')">💬 WhatsApp</button>
+      <button type="button" class="hud-chip" onclick="window.hudSend && window.hudSend('Check market intelligence')">📈 Markets</button>
+      <button type="button" class="hud-chip" onclick="window.hudSend && window.hudSend('Play music on YouTube')">▶️ Music</button>
+    </div>
   </div>
  </section>
 
@@ -552,6 +656,141 @@ setInterval(() => {
   l.className = ok ? 'ok' : 'bad';
   l.textContent = ok ? '● QUANTUM LINK OK' : '● LOCAL STANDBY';
 }, 1000);
+
+/* ---------- Interactive Voice & AI Communication ---------- */
+let recognition = null;
+let isRecognizing = false;
+
+function initVoice() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRec) {
+    recognition = new SpeechRec();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (evt) => {
+      const transcript = evt.results[0][0].transcript;
+      if (transcript) sendCommand(transcript);
+    };
+    recognition.onend = () => {
+      isRecognizing = false;
+      updateMicBtn();
+    };
+    recognition.onerror = () => {
+      isRecognizing = false;
+      updateMicBtn();
+    };
+  }
+}
+
+function updateMicBtn() {
+  const btn = $('#hud-mic-btn');
+  if (btn) {
+    btn.style.background = isRecognizing ? '#ef4444' : 'rgba(6, 182, 212, 0.15)';
+    btn.style.borderColor = isRecognizing ? '#ef4444' : 'var(--c)';
+    btn.style.boxShadow = isRecognizing ? '0 0 14px #ef4444' : 'none';
+  }
+}
+
+window.hudToggleMic = function() {
+  if (!recognition) initVoice();
+  if (!recognition) {
+    alert("Speech recognition not supported in this browser. Please type your query in the console.");
+    return;
+  }
+  if (isRecognizing) {
+    recognition.stop();
+    isRecognizing = false;
+  } else {
+    try {
+      recognition.start();
+      isRecognizing = true;
+    } catch(e) {}
+  }
+  updateMicBtn();
+};
+
+function speakText(txt) {
+  if ('speechSynthesis' in window && txt) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+    u.rate = 1.05;
+    u.pitch = 0.95;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+window.hudSend = function(text) {
+  sendCommand(text);
+};
+
+window.hudSubmit = function(e) {
+  if (e) e.preventDefault();
+  const input = $('#hud-cmd-input');
+  if (input && input.value.trim()) {
+    const val = input.value.trim();
+    input.value = '';
+    sendCommand(val);
+  }
+};
+
+async function sendCommand(text) {
+  if (!text || !text.trim()) return;
+  const q = text.trim();
+
+  const cb = $('#chat');
+  const dUser = el('div', 'm you');
+  dUser.append(el('i', '', 'USER ▸'), document.createTextNode(q), el('small', '', new Date().toLocaleTimeString()));
+  cb.append(dUser);
+  cb.scrollTop = cb.scrollHeight;
+
+  const heardEl = $('#heard');
+  if (heardEl) heardEl.textContent = q;
+  const cstEl = $('#cst');
+  if (cstEl) cstEl.textContent = 'JARVIS THINKING';
+  const modeEl = $('#mode');
+  if (modeEl) modeEl.textContent = 'COGNITION';
+
+  try {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch('/api/v1/ai/camera-interact', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ query: q, voice_enabled: true })
+    });
+    const data = await res.json();
+    const ans = data.answer || data.speech_text || 'System command executed, sir.';
+
+    const dJarvis = el('div', 'm jarvis');
+    dJarvis.append(el('i', '', 'JARVIS ▸'), document.createTextNode(ans), el('small', '', new Date().toLocaleTimeString()));
+    cb.append(dJarvis);
+    cb.scrollTop = cb.scrollHeight;
+
+    if (cstEl) cstEl.textContent = 'JARVIS RESPONDING';
+    speakText(ans);
+
+    setTimeout(() => {
+      if (cstEl) cstEl.textContent = 'IDLE';
+      if (modeEl) modeEl.textContent = 'ACTIVE';
+    }, 4000);
+  } catch (err) {
+    const dErr = el('div', 'm sys');
+    dErr.append(el('i', '', 'SYS ▸'), document.createTextNode('Command failed: ' + err.message));
+    cb.append(dErr);
+    cb.scrollTop = cb.scrollHeight;
+    if (cstEl) cstEl.textContent = 'IDLE';
+  }
+}
+
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    window.hudToggleMic();
+  }
+});
 
 /* ---------- Poll State ---------- */
 async function poll() {
