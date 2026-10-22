@@ -31,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, camerasCount, activeA
     events: { title: 'Detection Events & Alerts', subtitle: 'Chronological activity stream and review queue' },
     reports: { title: 'Surveillance Analytics & Reports', subtitle: 'Detection KPIs, camera uptime, and verifiable audit records' },
     cameras: { title: 'Camera Device Inventory', subtitle: 'Registered webcams, RTSP streams, and mobile camera nodes' },
+    hud: { title: 'J.A.R.V.I.S. Holographic 3D HUD', subtitle: 'Real-time quantum reactor core, two-way neural voice copilot, live market intelligence & executive automation' },
     settings: { title: 'System Hardening & Audit Logs', subtitle: 'Data retention policies and cryptographic key status' },
   };
 

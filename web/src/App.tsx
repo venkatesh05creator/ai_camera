@@ -5,6 +5,7 @@ import { NavTab, Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
 import { LiveMonitoring } from './pages/LiveMonitoring';
+import { HolographicHUDView } from './pages/HolographicHUDView';
 import { AICopilotView } from './pages/AICopilotView';
 import { PeopleDirectory } from './pages/PeopleDirectory';
 import { EventsTimeline } from './pages/EventsTimeline';
@@ -114,6 +115,7 @@ export const App: React.FC = () => {
           {activeTab === 'live' && (
             <LiveMonitoring cameras={cameras} onOpenEvents={() => setActiveTab('events')} />
           )}
+          {activeTab === 'hud' && <HolographicHUDView cameras={cameras} />}
           {activeTab === 'ai' && <AICopilotView />}
           {activeTab === 'people' && <PeopleDirectory />}
           {activeTab === 'events' && <EventsTimeline />}
