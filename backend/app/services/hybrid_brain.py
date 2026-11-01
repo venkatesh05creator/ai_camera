@@ -18,7 +18,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 KEYFILE = os.path.expanduser("~/.openjarvis/free.key")
-MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
 _GROQ_COOLDOWN_UNTIL: float = 0.0
 

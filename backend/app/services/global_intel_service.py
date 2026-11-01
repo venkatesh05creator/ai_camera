@@ -18,6 +18,7 @@ import asyncio
 from datetime import datetime, timezone
 import json
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
 import urllib.parse
@@ -382,7 +383,8 @@ def get_near_earth_objects(limit: int = 15) -> List[Dict[str, Any]]:
     if cached is not None:
         return cached
 
-    url = f"https://api.nasa.gov/neo/rest/v1/feed?start_date={today_str}&end_date={today_str}&api_key=DEMO_KEY"
+    nasa_key = os.environ.get("NASA_API_KEY", "DEMO_KEY").strip() or "DEMO_KEY"
+    url = f"https://api.nasa.gov/neo/rest/v1/feed?start_date={today_str}&end_date={today_str}&api_key={nasa_key}"
     data = _http_get_json(url, timeout=7.0)
 
     asteroids: List[Dict[str, Any]] = []
@@ -535,7 +537,46 @@ PUBLIC_CAMERA_CATALOG = [
 
 def get_public_cameras() -> List[Dict[str, Any]]:
     """Return catalog of publicly accessible cameras and scientific observatories."""
-    return PUBLIC_CAMERA_CATALOG
+    windy_key = os.environ.get("WINDY_WEBCAMS_API_KEY", "").strip()
+    cams = list(PUBLIC_CAMERA_CATALOG)
+    if windy_key:
+        cache_key = "windy_webcams"
+        cached = _get_cached(cache_key, 3600.0)
+        if cached is not None:
+            return cached
+        try:
+            req = urllib.request.Request(
+                "https://api.windy.com/webcams/api/v3/webcams?limit=8",
+                headers={"x-windy-api-key": windy_key, "User-Agent": _UA}
+            )
+            kwargs: Dict[str, Any] = {"timeout": 6.0}
+            if _SSL_CTX is not None:
+                kwargs["context"] = _SSL_CTX
+            with urllib.request.urlopen(req, **kwargs) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    for w in data.get("webcams", []):
+                        loc = w.get("location", {})
+                        images = w.get("images", {}).get("current", {})
+                        cams.append({
+                            "id": f"windy_{w.get('webcamId')}",
+                            "name": w.get("title", "Windy Global Webcam"),
+                            "location": f"{loc.get('city', '')}, {loc.get('country', '')}".strip(", "),
+                            "latitude": loc.get("latitude", 0.0),
+                            "longitude": loc.get("longitude", 0.0),
+                            "source_type": "public_webcam",
+                            "stream_type": "REFRESHING_SNAPSHOT",
+                            "category": "landscape",
+                            "status": "online",
+                            "refresh_interval_s": 900,
+                            "stream_url": w.get("urls", {}).get("detail", ""),
+                            "preview_url": images.get("preview", ""),
+                            "source_name": "Windy Webcams Global API",
+                        })
+                    _set_cached(cache_key, cams)
+        except Exception as e:
+            logger.warning("Windy Webcams fetch error: %s", e)
+    return cams
 
 
 def get_natural_events(limit: int = 20) -> List[Dict[str, Any]]:

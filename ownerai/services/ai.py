@@ -214,7 +214,7 @@ class GroqProvider:
             raise AIError("Groq provider requested without a configured API key")
         self._api_key = key
         self._base = "https://api.groq.com/openai/v1"
-        self._models = [settings.ai_model, "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]
+        self._models = [settings.ai_model, "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"]
 
     def complete(self, messages: List[Dict[str, str]], *, max_tokens: int) -> AIResponse:
         global _GROQ_COOLDOWN_UNTIL
