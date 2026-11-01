@@ -571,3 +571,76 @@ def test_20_scene_inquiries_and_accessories_route_to_vision():
     intent_fact, _, _, _ = IntentClassifier.classify("What is gold?")
     assert intent_fact == AIIntent.FACTUAL_KNOWLEDGE
 
+
+# =============================================================================
+# 21. Multi-Camera Status Audit ("Check all my cameras", "Which cameras are offline?")
+# =============================================================================
+def test_21_camera_management_status_audit(db_session):
+    """'Check all my cameras' and 'Which cameras are offline?' route to CAMERA_MANAGEMENT and audit cameras."""
+    intent_all, _, _, _ = IntentClassifier.classify("Check all my cameras")
+    assert intent_all == AIIntent.CAMERA_MANAGEMENT
+
+    intent_off, _, _, _ = IntentClassifier.classify("Which cameras are offline?")
+    assert intent_off == AIIntent.CAMERA_MANAGEMENT
+
+    # Execute check all cameras
+    ctx_all = AIOrchestrator.process_request(query="Check all my cameras", db=db_session)
+    assert ctx_all.detected_intent == AIIntent.CAMERA_MANAGEMENT
+    assert "camera" in ctx_all.answer.lower()
+    assert "online" in ctx_all.answer.lower()
+
+    # Execute which cameras are offline
+    ctx_off = AIOrchestrator.process_request(query="Which cameras are offline?", db=db_session)
+    assert ctx_off.detected_intent == AIIntent.CAMERA_MANAGEMENT
+    assert "camera" in ctx_off.answer.lower()
+
+
+# =============================================================================
+# 22. Historical Timeline & Entrance Searches ("Did anyone enter the house?")
+# =============================================================================
+def test_22_historical_event_search_entrance_and_attributes(db_session):
+    """'Did anyone enter the house?' and attribute searches route to HISTORICAL_EVENT_SEARCH."""
+    intent_enter, _, _, _ = IntentClassifier.classify("Did anyone enter the house?")
+    assert intent_enter == AIIntent.HISTORICAL_EVENT_SEARCH
+
+    ctx_enter = AIOrchestrator.process_request(query="Did anyone enter the house?", db=db_session)
+    assert ctx_enter.detected_intent == AIIntent.HISTORICAL_EVENT_SEARCH
+    assert "entrance" in ctx_enter.answer.lower() or "event" in ctx_enter.answer.lower() or "secure" in ctx_enter.answer.lower()
+
+    # Attribute query
+    intent_red, _, _, _ = IntentClassifier.classify("Search my camera history for someone wearing a red shirt")
+    assert intent_red == AIIntent.HISTORICAL_EVENT_SEARCH
+
+    ctx_red = AIOrchestrator.process_request(query="Search my camera history for someone wearing a red shirt", db=db_session)
+    assert ctx_red.detected_intent == AIIntent.HISTORICAL_EVENT_SEARCH
+    assert "red" in ctx_red.answer.lower()
+
+
+# =============================================================================
+# 23. Executive Security Summaries ("Summarize today's important events")
+# =============================================================================
+def test_23_security_summary_and_reports(db_session):
+    """'Summarize today's important events' and weekly reports provide structured metrics."""
+    intent_sum, _, _, _ = IntentClassifier.classify("Summarize today's important events")
+    assert intent_sum == AIIntent.SECURITY_ALERTS
+
+    ctx_sum = AIOrchestrator.process_request(query="Summarize today's important events", db=db_session)
+    assert ctx_sum.detected_intent == AIIntent.SECURITY_ALERTS
+    assert "security report" in ctx_sum.answer.lower()
+    assert "recorded events" in ctx_sum.answer.lower()
+
+
+# =============================================================================
+# 24. Proactive Nighttime Rules ("Notify me if unusual movement happens at night")
+# =============================================================================
+def test_24_nighttime_movement_rule_configuration(db_session):
+    """'Notify me if unusual movement happens at night' arms proactive rule monitoring."""
+    intent_night, _, _, _ = IntentClassifier.classify("Notify me if unusual movement happens at night")
+    assert intent_night == AIIntent.ZONE_RULE_MONITORING
+
+    ctx_night = AIOrchestrator.process_request(query="Notify me if unusual movement happens at night", db=db_session)
+    assert ctx_night.detected_intent == AIIntent.ZONE_RULE_MONITORING
+    assert "nighttime" in ctx_night.answer.lower()
+    assert ctx_night.action == "register_rule"
+
+

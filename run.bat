@@ -2,15 +2,13 @@
 title OwnerAI Face Recognition Studio
 cd /d "%~dp0"
 
-if not exist ".venv\Scripts\python.exe" (
-    echo [ERROR] Virtual environment not found in .venv.
-    echo Please create it using: py -3.13 -m venv .venv
-    pause
-    exit /b 1
+set PYTHON_BIN=python
+if exist ".venv\Scripts\python.exe" (
+    set PYTHON_BIN=.\.venv\Scripts\python.exe
 )
 
 set TF_ENABLE_ONEDNN_OPTS=0
-.\.venv\Scripts\python.exe main.py %*
+%PYTHON_BIN% main.py %*
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Application exited with code %ERRORLEVEL%.

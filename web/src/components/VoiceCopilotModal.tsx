@@ -1204,14 +1204,15 @@ export const VoiceCopilotModal: React.FC<VoiceCopilotModalProps> = ({
       {/* Fast Action Suggestion Chips */}
       <div className="jarvis-chips-bar">
         {[
-          { label: 'Can you see me?', icon: <Eye size={11} /> },
-          { label: 'What do you see?', icon: <Sparkles size={11} /> },
+          { label: 'Check all my cameras', icon: <Camera size={11} /> },
+          { label: 'What is happening in front of the camera?', icon: <Eye size={11} /> },
+          { label: 'Did anyone enter the house?', icon: <Shield size={11} /> },
+          { label: "Summarize today's important events", icon: <Activity size={11} /> },
+          { label: 'Which cameras are offline?', icon: <AlertTriangle size={11} /> },
           { label: 'What am I wearing?', icon: <Sparkles size={11} /> },
           { label: 'Check my expression', icon: <UserCheck size={11} /> },
-          { label: 'What happened on camera?', icon: <Activity size={11} /> },
           { label: 'Take a snapshot', icon: <Camera size={11} /> },
           { label: isRecording ? 'Stop recording' : 'Start recording', icon: <Download size={11} /> },
-          { label: 'Security alerts overview', icon: <AlertTriangle size={11} /> },
           { label: 'Capabilities & help', icon: <Radio size={11} /> },
         ].map((chip) => (
           <button

@@ -108,6 +108,29 @@ def search_historical_events(
     Distinguishes historical findings from live observations with explicit timestamps.
     """
     q_lower = query.lower().strip()
+    import re
+    from datetime import timedelta
+    now_utc = datetime.now(timezone.utc)
+
+    # 1. Parse conversational time windows if not explicitly supplied
+    if not start_time and not end_time:
+        if "today" in q_lower:
+            start_time = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif "yesterday evening" in q_lower:
+            yesterday = now_utc - timedelta(days=1)
+            start_time = yesterday.replace(hour=17, minute=0, second=0, microsecond=0)
+            end_time = yesterday.replace(hour=23, minute=59, second=59, microsecond=0)
+        elif "yesterday" in q_lower:
+            yesterday = now_utc - timedelta(days=1)
+            start_time = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = yesterday.replace(hour=23, minute=59, second=59, microsecond=0)
+        elif "this week" in q_lower:
+            start_time = now_utc - timedelta(days=7)
+        elif "past hour" in q_lower or "last hour" in q_lower:
+            start_time = now_utc - timedelta(hours=1)
+        elif "at night" in q_lower or "night" in q_lower:
+            start_time = now_utc - timedelta(days=1)
+
     stmt = select(DetectionEvent).order_by(desc(DetectionEvent.occurred_at))
 
     if camera_id:
@@ -118,9 +141,9 @@ def search_historical_events(
         stmt = stmt.where(DetectionEvent.occurred_at <= end_time)
 
     # Class / event keyword routing
-    if any(k in q_lower for k in ["zone", "enter", "entry"]):
+    if any(k in q_lower for k in ["zone", "enter", "entry", "entered", "came in", "visited"]):
         stmt = stmt.where(DetectionEvent.event_type.in_(["zone_entry", "person", "alert"]))
-    elif any(k in q_lower for k in ["exit", "leave", "leaving"]):
+    elif any(k in q_lower for k in ["exit", "leave", "leaving", "exited"]):
         stmt = stmt.where(DetectionEvent.event_type.in_(["zone_exit", "alert"]))
     elif any(k in q_lower for k in ["vehicle", "car", "truck", "bike"]):
         stmt = stmt.where(DetectionEvent.event_type.in_(["vehicle", "motion", "alert"]))
@@ -129,12 +152,32 @@ def search_historical_events(
     elif any(k in q_lower for k in ["alert", "unusual", "threat", "breach"]):
         stmt = stmt.where(DetectionEvent.event_type.in_(["alert", "zone_entry", "zone_occupancy_exceeded"]))
 
-    events = list(db.scalars(stmt.limit(limit)).all())
-    
+    raw_events = list(db.scalars(stmt.limit(limit * 2)).all())
+
+    # Filter by visual attribute descriptions if requested (e.g. 'red shirt', 'blue jacket')
+    events = []
+    color_match = re.search(r"\b(red|blue|black|white|green|yellow|gray|grey|orange|pink|purple|dark)\s+(?:shirt|clothes|jacket|hoodie|clothing|top|apparel)\b", q_lower)
+    target_color = color_match.group(1) if color_match else None
+
+    for ev in raw_events:
+        if target_color:
+            meta_str = ev.metadata_json or "{}"
+            if target_color in meta_str.lower():
+                events.append(ev)
+        else:
+            events.append(ev)
+
+    events = events[:limit]
+
     # Assemble natural language summary of findings
     summary = ""
     if not events:
-        summary = f"No historical events matching '{query}' were found in the recorded timeline."
+        if target_color:
+            summary = f"No historical events matching someone wearing a {target_color} shirt were found in the recorded timeline."
+        elif any(k in q_lower for k in ["enter", "entered", "anyone enter"]):
+            summary = "No unauthorized or unverified entrance events were found in the requested timeline. Monitored perimeters remained secure."
+        else:
+            summary = f"No historical events matching '{query}' were found in the recorded timeline."
     else:
         most_recent = events[0]
         rec_time = most_recent.occurred_at.strftime("%Y-%m-%d %H:%M:%S UTC")

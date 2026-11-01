@@ -1074,7 +1074,7 @@ export const LiveMonitoring: React.FC<LiveMonitoringProps> = ({ cameras, onOpenE
 
               {/* Quick Query Suggestions */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {['Person entered zone', 'Vehicle detections', 'Unusual events today', 'Motion alerts'].map((chip) => (
+                {['Did anyone enter the house?', 'Show me what happened yesterday evening', 'Someone wearing a red shirt', 'Unusual events today', 'Vehicle detections', 'Motion alerts'].map((chip) => (
                   <button
                     key={chip}
                     type="button"
