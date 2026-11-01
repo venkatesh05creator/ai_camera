@@ -6,6 +6,8 @@ import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
 import { LiveMonitoring } from './pages/LiveMonitoring';
 import { HolographicHUDView } from './pages/HolographicHUDView';
+import { GlobalIntelligenceMapView } from './pages/GlobalIntelligenceMapView';
+import { AssetTrackingView } from './pages/AssetTrackingView';
 import { AICopilotView } from './pages/AICopilotView';
 import { PeopleDirectory } from './pages/PeopleDirectory';
 import { EventsTimeline } from './pages/EventsTimeline';
@@ -116,6 +118,8 @@ export const App: React.FC = () => {
             <LiveMonitoring cameras={cameras} onOpenEvents={() => setActiveTab('events')} />
           )}
           {activeTab === 'hud' && <HolographicHUDView cameras={cameras} />}
+          {activeTab === 'global_map' && <GlobalIntelligenceMapView />}
+          {activeTab === 'assets' && <AssetTrackingView />}
           {activeTab === 'ai' && <AICopilotView />}
           {activeTab === 'people' && <PeopleDirectory />}
           {activeTab === 'events' && <EventsTimeline />}

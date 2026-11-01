@@ -48,6 +48,9 @@ class User(Base):
     cameras: Mapped[list["Camera"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     mobile_devices: Mapped[list["MobileDevice"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    assets: Mapped[list["Asset"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    monitoring_rules: Mapped[list["MonitoringRule"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    saved_locations: Mapped[list["SavedLocation"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
 
 class Camera(Base):
@@ -268,3 +271,77 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
+
+
+class Asset(Base):
+    """Universal registered personal or business assets tracked across cameras/feeds."""
+    __tablename__ = "assets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), default="vehicle", nullable=False)  # vehicle, equipment, goods, personal_item, pet
+    tracking_method: Mapped[str] = mapped_column(String(64), default="visual", nullable=False)  # visual, plate, barcode, rfid, manual
+    identifier: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)  # license plate, serial, tag, color/model
+    status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)  # active, missing, stationary, in_transit
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    location_label: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    camera_id: Mapped[Optional[str]] = mapped_column(ForeignKey("cameras.id", ondelete="SET NULL"), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    owner: Mapped[User] = relationship(back_populates="assets")
+    camera: Mapped[Optional[Camera]] = relationship()
+
+
+class GlobalFeedEvent(Base):
+    """Public domain global intelligence events (disasters, weather, flights, markets, space)."""
+    __tablename__ = "global_feed_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    domain: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # disaster, weather, transport, economics, space, infrastructure, news
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # earthquake, wildfire, storm, flight, market_shift, asteroid
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), default="info", nullable=False)  # info, low, medium, high, critical
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    location_name: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    source_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)  # USGS, Open-Meteo, OpenSky, Yahoo Finance, NASA
+    source_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    raw_payload_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MonitoringRule(Base):
+    """Intelligent user-configured surveillance and global monitoring rules."""
+    __tablename__ = "monitoring_rules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    rule_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    domain: Mapped[str] = mapped_column(String(64), default="all", nullable=False)  # camera, disaster, transport, economic, weather
+    condition_type: Mapped[str] = mapped_column(String(64), default="threshold", nullable=False)  # threshold, anomaly, presence, schedule
+    threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    schedule: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notification_channel: Mapped[str] = mapped_column(String(64), default="in_app", nullable=False)  # in_app, webhook, email
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    owner: Mapped[User] = relationship(back_populates="monitoring_rules")
+
+
+class SavedLocation(Base):
+    """Owner saved geographic locations of interest for global tracking and alerts."""
+    __tablename__ = "saved_locations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    label: Mapped[str] = mapped_column(String(160), nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    radius_km: Mapped[float] = mapped_column(Float, default=25.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    owner: Mapped[User] = relationship(back_populates="saved_locations")
+

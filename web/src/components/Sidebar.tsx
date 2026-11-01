@@ -1,6 +1,6 @@
-import { Camera, Users, Clock, BarChart3, Settings, Video, ShieldCheck, AlertCircle, Sparkles, Orbit } from 'lucide-react';
+import { Camera, Users, Clock, BarChart3, Settings, Video, ShieldCheck, AlertCircle, Sparkles, Orbit, Globe, PackageSearch } from 'lucide-react';
 
-export type NavTab = 'live' | 'hud' | 'ai' | 'people' | 'events' | 'reports' | 'cameras' | 'settings';
+export type NavTab = 'live' | 'hud' | 'global_map' | 'assets' | 'ai' | 'people' | 'events' | 'reports' | 'cameras' | 'settings';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -12,6 +12,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, active
   const navItems = [
     { id: 'live' as NavTab, label: 'Live Monitoring', icon: Video, badge: 'LIVE' },
     { id: 'hud' as NavTab, label: 'Holographic HUD', icon: Orbit, badge: '3D HUD' },
+    { id: 'global_map' as NavTab, label: 'Global Intel Map', icon: Globe, badge: 'WORLD' },
+    { id: 'assets' as NavTab, label: 'Asset Tracking', icon: PackageSearch, badge: 'ASSET' },
     { id: 'ai' as NavTab, label: 'AI Copilot & Intel', icon: Sparkles, badge: 'AI' },
     { id: 'people' as NavTab, label: 'People Directory', icon: Users },
     { id: 'events' as NavTab, label: 'Events & Alerts', icon: Clock, count: activeAlertsCount },

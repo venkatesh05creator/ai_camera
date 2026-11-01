@@ -52,6 +52,8 @@ class AIIntent(str, Enum):
     CAMERA_MANAGEMENT = "camera_management"
     BIOMETRIC_ENROLLMENT = "biometric_enrollment"
     SECURITY_ALERTS = "security_alerts"
+    GLOBAL_INTELLIGENCE = "global_intelligence"
+    ASSET_TRACKING = "asset_tracking"
     EXECUTIVE_ACTION = "executive_action"
     MULTI_PART_QUESTION = "multi_part_question"
     UNSUPPORTED_OR_AMBIGUOUS = "unsupported_or_ambiguous"
@@ -275,7 +277,15 @@ class IntentClassifier:
         ):
             return AIIntent.CAMERA_VISION_SCENE, 0.96, raw_q, None
 
-        # 10B. EXECUTIVE ACTIONS (WhatsApp, YouTube, App Launcher, Stocks, Mail, Volume, Time)
+        # 10A. ASSET TRACKING (Vehicles, Equipment, Goods, Personal Belongings)
+        if cls._is_asset_tracking(raw_q):
+            return AIIntent.ASSET_TRACKING, 0.96, raw_q, None
+
+        # 10B. GLOBAL INTELLIGENCE (Earthquakes, Disasters, Aircraft, Space, Public Cams)
+        if cls._is_global_intelligence(raw_q):
+            return AIIntent.GLOBAL_INTELLIGENCE, 0.95, raw_q, None
+
+        # 10C. EXECUTIVE ACTIONS (WhatsApp, YouTube, App Launcher, Stocks, Mail, Volume, Time)
         if cls._is_executive_action(raw_q):
             return AIIntent.EXECUTIVE_ACTION, 0.98, raw_q, None
 
@@ -294,6 +304,50 @@ class IntentClassifier:
 
         # 14. FACTUAL KNOWLEDGE (Default for informational inquiries)
         return AIIntent.FACTUAL_KNOWLEDGE, 0.85, raw_q, None
+
+    @classmethod
+    def _is_asset_tracking(cls, raw_q: str) -> bool:
+        q = raw_q.lower()
+        if any(k in q for k in [
+            "track my", "where is my car", "where is my vehicle", "where is my laptop",
+            "locate my", "find my car", "find my vehicle", "find my laptop", "find my package",
+            "registered asset", "registered assets", "my assets", "list my assets",
+            "asset status", "track asset", "track vehicle", "track package"
+        ]):
+            return True
+        if re.search(r"\b(where|locate|find|track)\s+(?:is\s+)?(?:my\s+)?(?:registered\s+)?(?:the\s+)?(car|bike|motorcycle|scooter|vehicle|laptop|keys|bag|package|belongings|pet|dog|cat)\b", q):
+            return True
+        return False
+
+    @classmethod
+    def _is_global_intelligence(cls, raw_q: str) -> bool:
+        q = raw_q.lower()
+        if any(k in q for k in [
+            "earthquake", "earthquakes", "natural disaster", "natural disasters", "tsunami",
+            "wildfire", "wildfires", "seismic activity", "recent quakes", "volcanic eruption"
+        ]):
+            return True
+        if any(k in q for k in [
+            "aircraft overhead", "flights near", "track flight", "live flights", "air traffic",
+            "planes overhead", "flight tracking", "aviation tracking"
+        ]):
+            return True
+        if any(k in q for k in [
+            "asteroid", "asteroids", "near earth object", "near earth objects", "space activity",
+            "nasa asteroid", "asteroid passing"
+        ]):
+            return True
+        if any(k in q for k in [
+            "forex rates", "currency exchange", "exchange rate", "dollar to inr", "dollar to euro",
+            "forex rates", "global currencies", "currency converter"
+        ]):
+            return True
+        if any(k in q for k in [
+            "public camera", "public cameras", "traffic camera", "traffic cameras",
+            "times square cam", "shibuya cam", "public webcam", "global cameras"
+        ]):
+            return True
+        return False
 
     @classmethod
     def _is_executive_action(cls, raw_q: str) -> bool:
@@ -968,6 +1022,89 @@ class SafeToolRegistry:
 
         return None
 
+    @classmethod
+    def execute_global_intelligence(cls, context: AIRequestContext) -> Dict[str, Any]:
+        """Query open-source, public domain global intelligence feeds."""
+        from .global_intel_service import (
+            get_earthquake_feed,
+            get_economic_overview,
+            get_live_aviation_tracking,
+            get_near_earth_objects,
+            get_public_cameras,
+        )
+        context.tool_calls.append({"tool": "global_intelligence", "timestamp": time.time()})
+        q = context.cleaned_query.lower()
+
+        result = {"domain": "global", "data": {}}
+        if any(k in q for k in ["earthquake", "earthquakes", "quake", "disaster", "seismic", "tsunami"]):
+            quakes = get_earthquake_feed(min_magnitude=3.0, limit=5)
+            result["domain"] = "disaster"
+            result["data"] = {"earthquakes": quakes}
+        elif any(k in q for k in ["flight", "flights", "aircraft", "plane", "aviation", "air traffic"]):
+            flights = get_live_aviation_tracking(limit=5)
+            result["domain"] = "transport"
+            result["data"] = {"flights": flights}
+        elif any(k in q for k in ["asteroid", "asteroids", "space", "neo", "near earth"]):
+            asteroids = get_near_earth_objects(limit=5)
+            result["domain"] = "space"
+            result["data"] = {"asteroids": asteroids}
+        elif any(k in q for k in ["forex", "currency", "exchange rate", "dollar"]):
+            econ = get_economic_overview()
+            result["domain"] = "economics"
+            result["data"] = econ
+        elif any(k in q for k in ["public camera", "traffic camera", "webcam"]):
+            cams = get_public_cameras()
+            result["domain"] = "public_cameras"
+            result["data"] = {"cameras": cams}
+        else:
+            quakes = get_earthquake_feed(min_magnitude=4.5, limit=3)
+            econ = get_economic_overview()
+            result["domain"] = "overview"
+            result["data"] = {"earthquakes": quakes, "economics": econ}
+
+        context.tool_results.append({"tool": "global_intelligence", "result": result})
+        return result
+
+    @classmethod
+    def execute_asset_tracking(cls, context: AIRequestContext) -> Dict[str, Any]:
+        """Query owner personal inventory and cross-camera sightings."""
+        context.tool_calls.append({"tool": "asset_tracking", "timestamp": time.time()})
+        from ..core.database import SessionLocal
+        from .asset_tracking_service import get_asset_summary, get_user_assets
+
+        db = SessionLocal()
+        try:
+            owner_id = context.user_id or "default"
+            if owner_id == "default":
+                from ..models.entities import User
+                owner = db.query(User).filter_by(role="owner").first()
+                if owner:
+                    owner_id = owner.id
+            summary = get_asset_summary(db, owner_id)
+            assets = get_user_assets(db, owner_id)
+            asset_list = [
+                {
+                    "name": a.name,
+                    "category": a.category,
+                    "status": a.status,
+                    "location": a.location_label,
+                    "last_seen_at": a.last_seen_at.isoformat() if a.last_seen_at else None,
+                    "identifier": a.identifier,
+                }
+                for a in assets
+            ]
+            result = {
+                "summary": summary,
+                "assets": asset_list,
+            }
+        except Exception as exc:
+            result = {"summary": {}, "assets": [], "error": str(exc)}
+        finally:
+            db.close()
+
+        context.tool_results.append({"tool": "asset_tracking", "result": result})
+        return result
+
 
 class ResponseValidator:
     """Post-generation integrity and grounding validator.
@@ -1528,6 +1665,71 @@ class AIOrchestrator:
                 ctx.answer = v_res.answer
                 ctx.speech_text = v_res.speech_text
                 ctx.execution_status = "success"
+
+        # ---------------------------------------------------------------------
+        # 10A1. GLOBAL INTELLIGENCE (Disasters, Flights, Space, Forex)
+        # ---------------------------------------------------------------------
+        elif intent == AIIntent.GLOBAL_INTELLIGENCE:
+            intel = SafeToolRegistry.execute_global_intelligence(ctx)
+            domain = intel.get("domain", "global")
+            data = intel.get("data", {})
+            if domain == "disaster":
+                quakes = data.get("earthquakes", [])
+                if quakes:
+                    top = quakes[0]
+                    bullet_list = "\n".join([f"• **{q['title']}** ({q['severity'].upper()} severity) at {q['occurred_at'][:16]}" for q in quakes[:4]])
+                    ctx.answer = f"🌍 **Global Natural Disaster Alert (USGS Live):**\n\n{bullet_list}\n\n*Verified data from USGS Earthquake Hazards Program.*"
+                    ctx.speech_text = f"USGS reports {len(quakes)} recent seismic events. Most notable is {top['title']}."
+                else:
+                    ctx.answer = "🌍 **Global Natural Disaster Intelligence:**\n\nNo significant seismic events or major disasters reported in the last 24 hours."
+                    ctx.speech_text = "No major seismic events reported in the last 24 hours."
+            elif domain == "transport":
+                flights = data.get("flights", [])
+                if flights:
+                    f_list = "\n".join([f"• **{f['callsign']}** from {f['origin_country']}: {f['altitude_ft']:,} ft at {f['speed_knots']} kts" for f in flights[:4]])
+                    ctx.answer = f"✈️ **Live Aviation Telemetry (OpenSky Network):**\n\n{f_list}\n\n*Tracking real-time ADS-B transponder data.*"
+                    ctx.speech_text = f"Tracking live air traffic. {len(flights)} aircraft identified via OpenSky ADS-B network."
+                else:
+                    ctx.answer = "✈️ **Live Aviation Telemetry:** No aircraft states captured in current sector."
+                    ctx.speech_text = "No live flights captured in the target airspace."
+            elif domain == "space":
+                asteroids = data.get("asteroids", [])
+                if asteroids:
+                    a_list = "\n".join([f"• **{a['name']}**: Diameter {a['estimated_diameter_m']}, miss distance {a['miss_distance_km']:,} km (Hazardous: {a['is_hazardous']})" for a in asteroids[:4]])
+                    ctx.answer = f"🚀 **Near-Earth Space Intelligence (NASA NeoWs):**\n\n{a_list}\n\n*Source: NASA JPL Center for Near Earth Object Studies.*"
+                    ctx.speech_text = f"NASA NeoWs reports {len(asteroids)} asteroids approaching Earth today."
+                else:
+                    ctx.answer = "🚀 **Space Intelligence:** No close asteroid approaches reported for today."
+                    ctx.speech_text = "No close asteroid approaches detected today."
+            elif domain == "public_cameras":
+                cams = data.get("cameras", [])
+                c_list = "\n".join([f"• **{c['name']}** ({c['location']}) - Status: {c['status'].upper()}" for c in cams])
+                ctx.answer = f"📹 **Public & Municipal Cameras Catalog:**\n\n{c_list}\n\n*Publicly authorized feeds and open observatories.*"
+                ctx.speech_text = f"{len(cams)} public cameras and open observatories are available."
+            else:
+                ctx.answer = "🌐 **Global Intelligence Briefing:**\n\nMonitoring worldwide disasters, weather anomalies, air traffic, and economic indicators. Open the Global Intelligence Map to inspect all live telemetry."
+                ctx.speech_text = "Global intelligence active. Monitoring disasters, weather, air traffic, and markets."
+            ctx.execution_status = "success"
+
+        # ---------------------------------------------------------------------
+        # 10A2. ASSET TRACKING
+        # ---------------------------------------------------------------------
+        elif intent == AIIntent.ASSET_TRACKING:
+            res = SafeToolRegistry.execute_asset_tracking(ctx)
+            assets = res.get("assets", [])
+            summary = res.get("summary", {})
+            if assets:
+                a_lines = []
+                for a in assets[:5]:
+                    last_seen = a['last_seen_at'][:16] if a['last_seen_at'] else "Not recorded"
+                    a_lines.append(f"• **{a['name']}** ({a['category'].title()}): Status **{a['status'].upper()}** at *{a['location']}* (Last seen: {last_seen})")
+                joined = "\n".join(a_lines)
+                ctx.answer = f"📦 **Registered Asset Tracking & Situational Awareness:**\n\n{joined}\n\n*Total registered: {summary.get('total_assets', len(assets))} assets across your monitored locations.*"
+                ctx.speech_text = f"You have {len(assets)} registered assets. Most recently monitored is {assets[0]['name']} at {assets[0]['location']}."
+            else:
+                ctx.answer = "📦 **Registered Asset Tracking:**\n\nNo personal assets are currently registered. You can add vehicles, equipment, or goods in the Asset Tracking dashboard."
+                ctx.speech_text = "You do not have any registered assets yet. Add assets in the Asset Tracking dashboard."
+            ctx.execution_status = "success"
 
         # ---------------------------------------------------------------------
         # 10B. EXECUTIVE ACTIONS (WhatsApp, YouTube, App Launcher, Stocks, Mail, Volume, Time)

@@ -14,10 +14,12 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.v1.ai import router as ai_router
 from .api.v1.alerts import router as alerts_router
+from .api.v1.assets import router as assets_router
 from .api.v1.audit import router as audit_router
 from .api.v1.auth import router as auth_router
 from .api.v1.cameras import router as cameras_router
 from .api.v1.events import router as events_router
+from .api.v1.global_intel import router as global_intel_router
 from .api.v1.people import router as people_router
 from .api.v1.reports import router as reports_router
 from .api.v1.stream import router as stream_router
@@ -148,6 +150,8 @@ def create_app() -> FastAPI:
     app.include_router(audit_router, prefix=api_prefix)
     app.include_router(stream_router, prefix=api_prefix)
     app.include_router(ai_router, prefix=api_prefix)
+    app.include_router(global_intel_router, prefix=api_prefix)
+    app.include_router(assets_router, prefix=api_prefix)
 
     # Health check
     @app.get("/health")
