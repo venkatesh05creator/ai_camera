@@ -159,9 +159,9 @@ class JarvisOrchestrator:
             res_yt = search_youtube(query_yt)
             return AgentResult(agent_type=AgentType.ACTION, status="success", answer=res_yt["message"], speech_text=res_yt["message"], execution_time_ms=(time.time() - t0) * 1000.0)
 
-        # Web Search
+        # Web Search (only for direct explicit browser search commands that don't ask for latest information/news synthesis)
         m_ggl = re.match(r"(?:search|google)(?: for)?\s+(.+)", q_lower)
-        if m_ggl and not any(k in q_lower for k in ["youtube", "event", "camera", "history"]):
+        if m_ggl and not any(k in q_lower for k in ["youtube", "event", "camera", "history", "latest", "news", "information", "updates"]):
             query_ggl = m_ggl.group(1).strip()
             res_ggl = search_google(query_ggl)
             return AgentResult(agent_type=AgentType.RESEARCH, status="success", answer=res_ggl["message"], speech_text=res_ggl["message"], execution_time_ms=(time.time() - t0) * 1000.0)

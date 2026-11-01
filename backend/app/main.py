@@ -101,6 +101,11 @@ def _seed_initial_data():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _seed_initial_data()
+    try:
+        from .services.retention_service import run_retention_sweep
+        run_retention_sweep()
+    except Exception as exc:
+        logger.warning("Startup retention sweep skipped: %s", exc)
     yield
     worker_registry.stop_all()
 
@@ -169,6 +174,12 @@ def create_app() -> FastAPI:
         """Returns live system telemetry, audio visualizer wave, and market quotes for the HUD."""
         from .services.hud_service import get_hud_state_data
         return JSONResponse(content=get_hud_state_data(lv=lv))
+
+    @app.post(f"{api_prefix}/system/retention-sweep")
+    def trigger_retention_sweep_endpoint():
+        """Trigger on-demand retention sweep to reclaim disk space."""
+        from .services.retention_service import run_retention_sweep
+        return JSONResponse(content=run_retention_sweep())
 
     # Mount Web build if present
     dist_dir = Path("web/dist")

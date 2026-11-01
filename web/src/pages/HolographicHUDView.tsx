@@ -20,6 +20,7 @@ import {
   Sparkles,
   RefreshCw,
   Play,
+  Square,
   MessageSquare,
   Activity,
   Layers,
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Camera } from '../types';
+import { SentenceChunkTTSQueue, pickNaturalEnglishVoice } from '../utils/ttsQueue';
 
 interface HolographicHUDProps {
   cameras: Camera[];
@@ -96,13 +98,16 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
     },
   ]);
 
-  // Canvas Refs
+  // Canvas & Audio Engine Refs
   const reactorCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const animFrameRef = useRef<number | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const audioLevelRef = useRef<number>(0.1);
+  const ttsQueueRef = useRef<SentenceChunkTTSQueue | null>(null);
+  const [currentSpeechChunk, setCurrentSpeechChunk] = useState<string>('');
+  const [speechProgress, setSpeechProgress] = useState<{ index: number; total: number }>({ index: 0, total: 0 });
 
   // Quick Action Chips
   const quickPrompts = [
@@ -257,6 +262,53 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
   }, [assistantState]);
 
   // Toggle Voice Recognition
+  // Initialize SentenceChunkTTSQueue Lifecycle
+  useEffect(() => {
+    ttsQueueRef.current = new SentenceChunkTTSQueue({
+      onStart: () => {
+        setAssistantState('speaking');
+      },
+      onChunk: (chunk, index, total) => {
+        setCurrentSpeechChunk(chunk);
+        setSpeechProgress({ index, total });
+        audioLevelRef.current = 0.65;
+      },
+      onEnd: () => {
+        setAssistantState('idle');
+        setCurrentSpeechChunk('');
+        audioLevelRef.current = 0.05;
+      },
+      onError: (err) => {
+        console.warn('TTS queue error:', err);
+        setAssistantState('idle');
+        setCurrentSpeechChunk('');
+        audioLevelRef.current = 0.05;
+      },
+      onInterrupted: () => {
+        setAssistantState('idle');
+        setCurrentSpeechChunk('');
+        audioLevelRef.current = 0.05;
+      },
+    });
+
+    return () => {
+      ttsQueueRef.current?.stop();
+    };
+  }, []);
+
+  // Speech Cancellation Helper
+  const cancelSpeech = () => {
+    try {
+      ttsQueueRef.current?.stop();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+    setAssistantState('idle');
+    setCurrentSpeechChunk('');
+    audioLevelRef.current = 0.05;
+  };
+
   const toggleListening = () => {
     if (isListening) {
       try {
@@ -267,9 +319,7 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
     } else {
       try {
         // Cancel ongoing TTS before listening
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
+        cancelSpeech();
         recognitionRef.current?.start();
       } catch (e) {
         console.warn('Microphone start error:', e);
@@ -277,37 +327,16 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
     }
   };
 
-  // Text-To-Speech Playback
+  // Text-To-Speech Playback with non-truncating sentence chunking & Chromium heartbeat
   const speakAI = (text: string) => {
-    if (isVoiceMuted || !('speechSynthesis' in window)) return;
+    if (isVoiceMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      const cleanText = text.replace(/[*#_`]/g, '').trim();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.05;
-      utterance.pitch = 0.98;
-
+      cancelSpeech();
       const voices = window.speechSynthesis.getVoices();
-      const naturalVoice = voices.find(
-        (v) =>
-          (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('David') || v.name.includes('Google UK')) &&
-          v.lang.startsWith('en')
-      ) || voices.find((v) => v.lang.startsWith('en'));
-
-      if (naturalVoice) utterance.voice = naturalVoice;
-
-      utterance.onstart = () => {
-        setAssistantState('speaking');
-      };
-      utterance.onend = () => {
-        setAssistantState('idle');
-      };
-      utterance.onerror = () => {
-        setAssistantState('idle');
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch {
+      const naturalVoice = pickNaturalEnglishVoice(voices);
+      ttsQueueRef.current?.speak(text, naturalVoice);
+    } catch (e) {
+      console.warn('TTS queue playback error:', e);
       setAssistantState('idle');
     }
   };
@@ -316,6 +345,9 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
   const handleSendQuery = async (queryToSend: string) => {
     const q = queryToSend.trim();
     if (!q) return;
+
+    // Cancel ongoing speech on new query
+    cancelSpeech();
 
     // Add user turn to chat
     const userTurn: ChatTurn = {
@@ -806,6 +838,64 @@ export const HolographicHUDView: React.FC<HolographicHUDProps> = ({ cameras }) =
                 </button>
               ))}
             </div>
+
+            {/* Active Speech Progress Banner with Stop/Cancel Control */}
+            {assistantState === 'speaking' && (
+              <div
+                className="hud-speaking-banner"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 14px',
+                  marginBottom: '10px',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  borderRadius: '8px',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                  <Volume2 size={16} color="#38bdf8" />
+                  <span className="mono" style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600 }}>
+                    JARVIS SPEAKING {speechProgress.total > 1 ? `[${speechProgress.index + 1}/${speechProgress.total}]` : ''}:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.8rem',
+                      color: '#e2e8f0',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '380px',
+                    }}
+                  >
+                    "{currentSpeechChunk || 'Speaking...'}"
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelSpeech}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 10px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    borderRadius: '6px',
+                    color: '#f87171',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                  title="Stop / Cancel Voice Output"
+                >
+                  <Square size={12} fill="#f87171" />
+                  <span>STOP SPEECH</span>
+                </button>
+              </div>
+            )}
 
             {/* Voice & Text Input Bar */}
             <form

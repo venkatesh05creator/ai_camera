@@ -75,6 +75,46 @@ class VisionAgent:
         }
 
     @classmethod
+    def _analyze_roi_color(
+        cls,
+        frame: Optional[np.ndarray],
+        bbox: Optional[Any] = None,
+    ) -> str:
+        """Calculate dominant human-friendly color of an object or region of interest."""
+        if frame is None or getattr(frame, "size", 0) == 0:
+            return "unknown"
+        from ..services.scene_analysis_service import _rgb_to_human_color_name
+
+        h, w = frame.shape[:2]
+        if bbox:
+            x, y, bw, bh = bbox
+            x1, y1 = max(0, int(x)), max(0, int(y))
+            x2, y2 = min(w, int(x + bw)), min(h, int(y + bh))
+            if x2 > x1 and y2 > y1:
+                roi = frame[y1:y2, x1:x2]
+            else:
+                roi = frame
+        else:
+            roi = frame[int(h * 0.25):int(h * 0.75), int(w * 0.25):int(w * 0.75)]
+
+        if roi.size == 0:
+            return "neutral"
+
+        small = cv2.resize(roi, (40, 40), interpolation=cv2.INTER_AREA)
+        pixels = small.reshape(-1, 3).astype(np.float32)
+
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        try:
+            _, labels, centers = cv2.kmeans(pixels, 2, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
+            counts = np.bincount(labels.flatten())
+            dom_idx = int(np.argmax(counts))
+            b, g, r = [int(c) for c in centers[dom_idx]]
+            return _rgb_to_human_color_name(r, g, b)
+        except Exception:
+            median_bgr = np.median(pixels, axis=0)
+            return _rgb_to_human_color_name(int(median_bgr[2]), int(median_bgr[1]), int(median_bgr[0]))
+
+    @classmethod
     def analyze_live_scene(
         cls,
         raw_frame: Optional[np.ndarray],
@@ -223,6 +263,56 @@ class VisionAgent:
                 f"• **Lighting Condition**: {quality['lighting']} lighting."
             )
             speech = f"From the camera view, you appear to be wearing {clothing_color} attire."
+
+        # B2. Specific Object Color Query (e.g. "What color is the object in front of the camera?")
+        elif (
+            any(k in q_lower for k in [
+                "color of the object", "color of the item", "color of the thing",
+                "what color is the object", "what color is the item", "what color is the product",
+                "color is the object in front of the camera", "color of the object in front of the camera",
+            ])
+            or (("what color" in q_lower or "which color" in q_lower) and any(k in q_lower for k in ["object", "item", "holding", "in front of the camera", "in front of the lens"]))
+        ):
+            non_person_objs = [d for d in detected_objects if d.label != "person"]
+            if non_person_objs:
+                top_obj = non_person_objs[0]
+                obj_color = cls._analyze_roi_color(raw_frame, top_obj.bbox)
+                ans = (
+                    f"🎨 **Object Color Analysis (Camera: {cam_label} at {obs_time}):**\n\n"
+                    f"{stale_note}"
+                    f"• **Direct Observation**: The visible object in front of the camera is a **{top_obj.label}**, with a dominant color of **{obj_color}**.\n"
+                    f"• **Confidence**: {top_obj.confidence * 100:.1f}%\n"
+                    f"• **Scene Context**: Ambient room lighting is {quality['lighting'].lower()}."
+                )
+                speech = f"Based on the camera frame, the {top_obj.label} in front of the camera is predominantly {obj_color}."
+            elif bg_data.get("detected_items"):
+                top_item = bg_data["detected_items"][0]
+                obj_color = cls._analyze_roi_color(raw_frame)
+                ans = (
+                    f"🎨 **Object Color Analysis (Camera: {cam_label} at {obs_time}):**\n\n"
+                    f"{stale_note}"
+                    f"• **Direct Observation**: The visible item in front of the camera appears to be **{top_item}**, showing a primary tone of **{obj_color}**.\n"
+                    f"• **Scene Context**: Ambient room lighting is {quality['lighting'].lower()}."
+                )
+                speech = f"The visible object in front of the camera is {top_item}, with a {obj_color} color."
+            elif people_count > 0:
+                clothing = clothing_color
+                ans = (
+                    f"🔍 **Object Color Inspection (Camera: {cam_label} at {obs_time}):**\n\n"
+                    f"{stale_note}"
+                    f"I see you in front of the camera in **{clothing}** attire, but no separate object is currently held up or detected in the foreground. "
+                    f"Please hold the object closer to the center of the lens to inspect its color."
+                )
+                speech = f"I see you in {clothing} attire, but no separate object is clearly held up in front of the camera."
+            else:
+                ambient_col = bg_data.get("speech_color", palette_desc)
+                ans = (
+                    f"🔍 **Object Color Inspection (Camera: {cam_label} at {obs_time}):**\n\n"
+                    f"{stale_note}"
+                    f"No person or distinct object is currently positioned in front of the camera. "
+                    f"The ambient scene background is predominantly **{palette_desc}**."
+                )
+                speech = f"No distinct object is in front of the camera. The background tone is {ambient_col}."
 
         # C. Color / Wall / Background
         elif any(k in q_lower for k in ["background color", "wall color", "color behind me", "what color is it", "what color"]):

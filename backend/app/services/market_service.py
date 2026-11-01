@@ -43,6 +43,14 @@ _CACHE: Dict[str, Dict[str, Any]] = {}
 _CACHE_TTL_SECONDS = 60.0  # 1 minute cache
 
 
+def calculate_sma(prices: List[float], period: int = 5) -> float:
+    """Calculate Simple Moving Average over the trailing period."""
+    if not prices or period <= 0:
+        return 0.0
+    trailing = prices[-period:]
+    return sum(trailing) / float(len(trailing))
+
+
 def fetch_chart(symbol: str, range_period: str = "5d", interval: str = "15m") -> Optional[Dict[str, Any]]:
     """Fetch raw chart history from Yahoo Finance API with caching."""
     now = time.time()

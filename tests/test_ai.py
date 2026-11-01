@@ -140,3 +140,19 @@ def test_redaction_removes_personal_data_from_context():
     assert "alice@example.test" not in redacted
     assert "192.168.1.44" not in redacted
     assert "1234567890" not in redacted
+
+
+def test_gemini_flash_provider_privacy_guard(monkeypatch):
+    """Verify Gemini provider is NOT built unless OWNERAI_ENABLE_CLOUD_VISION is explicitly set to 1."""
+    monkeypatch.setenv("GEMINI_API_KEY", "mock_gemini_key")
+    monkeypatch.delenv("OWNERAI_ENABLE_CLOUD_VISION", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    provider = ai.build_provider()
+    # Default without explicit toggle must be OfflineProvider
+    assert isinstance(provider, ai.OfflineProvider)
+
+    # When explicit toggle is set to 1, GeminiFlashProvider is built
+    monkeypatch.setenv("OWNERAI_ENABLE_CLOUD_VISION", "1")
+    provider_enabled = ai.build_provider()
+    assert isinstance(provider_enabled, ai.GeminiFlashProvider)

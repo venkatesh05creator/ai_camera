@@ -266,22 +266,100 @@ class GroqProvider:
         return OfflineProvider().complete(messages, max_tokens=max_tokens)
 
 
+class GeminiFlashProvider:
+    """Client for Google Gemini Flash free tier (15 RPM / 1,500 RPD).
+    
+    Guarded by strict owner privacy control: only active when GEMINI_API_KEY is
+    configured and OWNERAI_ENABLE_CLOUD_VISION is explicitly set to 1/true.
+    Never sends biometric embeddings.
+    """
+
+    name = "gemini_flash"
+
+    def __init__(self, settings: Settings) -> None:
+        import os
+
+        key = (
+            os.environ.get("GEMINI_API_KEY", "").strip()
+            or (settings.ai_api_key.get_secret_value() if settings.ai_api_key else "")
+        )
+        if not key:
+            raise AIError("Gemini provider requested without an API key")
+        self._api_key = key
+        self._model_name = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+
+    def complete(self, messages: List[Dict[str, str]], *, max_tokens: int) -> AIResponse:
+        try:
+            prompt_parts = []
+            for m in messages:
+                role = m.get("role", "user")
+                content = m.get("content", "")
+                prompt_parts.append(f"{role.upper()}: {content}")
+            full_prompt = "\n\n".join(prompt_parts)
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model_name}:generateContent?key={self._api_key}"
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": full_prompt}],
+                    }
+                ],
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens,
+                    "temperature": 0.2,
+                },
+            }
+
+            with httpx.Client(timeout=self._timeout) as client:
+                resp = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                resp.raise_for_status()
+                data = resp.json()
+
+            candidates = data.get("candidates") or []
+            if candidates:
+                parts = (candidates[0].get("content") or {}).get("parts") or []
+                text = "".join(p.get("text", "") for p in parts).strip()
+            else:
+                text = ""
+
+            tokens = int((data.get("usageMetadata") or {}).get("totalTokenCount") or len(text.split()))
+            return AIResponse(text=text, tokens=tokens, provider=self.name)
+        except Exception as exc:
+            logger.warning("Gemini Flash free-tier call failed: %s, falling back to offline", exc)
+            return OfflineProvider().complete(messages, max_tokens=max_tokens)
+
+
 def build_provider(settings: Optional[Settings] = None) -> AIProvider:
     """Instantiate the configured provider (falls back to the offline one)."""
     settings = settings or get_settings()
     import os
 
+    # 1. Optional Gemini Flash (only if explicitly enabled by owner privacy toggle)
+    if (
+        (os.environ.get("GEMINI_API_KEY") or getattr(settings, "ai_provider", None) == "gemini")
+        and os.environ.get("OWNERAI_ENABLE_CLOUD_VISION", "0").lower() in ("1", "true")
+    ):
+        try:
+            return GeminiFlashProvider(settings)
+        except Exception:
+            pass
+
+    # 2. Groq Cloud LLM (with automatic HTTP 429 rate limit backoff)
     if os.environ.get("GROQ_API_KEY") or getattr(settings, "ai_provider", None) == "groq":
         try:
             return GroqProvider(settings)
         except AIError:
             pass
 
+    # 3. Generic OpenAI-compatible endpoint
     if settings.ai_provider == "openai_compatible" and settings.ai_api_key:
         try:
             return OpenAICompatibleProvider(settings)
         except AIError:
             logger.warning("falling back to the offline provider")
+
+    # 4. Default Offline Deterministic Provider (100% private, 0 data sent)
     return OfflineProvider()
 
 
