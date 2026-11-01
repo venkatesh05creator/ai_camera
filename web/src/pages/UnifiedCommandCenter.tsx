@@ -203,8 +203,13 @@ export const UnifiedCommandCenter: React.FC = () => {
         attributionControl: true,
       });
 
-      // High-Contrast CartoDB Dark Matter tiles (100% Free, ODbL / CartoDB)
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      // CARTO Dark Matter Tiles with User's Carto API Key
+      const cartoKey = 'cb1_4zq3_1_ea5a143596137f10fbecccc4';
+      const tileUrl = cartoKey 
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+      window.L.tileLayer(tileUrl, {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19,

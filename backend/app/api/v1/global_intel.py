@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -31,6 +32,20 @@ class SavedLocationCreate(BaseModel):
     latitude: float
     longitude: float
     radius_km: float = 25.0
+
+
+@router.get("/config")
+def get_map_config(current_user: User = Depends(get_current_user)):
+    """Return client-side GIS map configuration and API tokens."""
+    carto_key = os.environ.get("CARTO_API_KEY", "").strip() or os.environ.get("MAP_API_KEY", "").strip()
+    tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    if carto_key:
+        tile_url += f"?api_key={carto_key}"
+    return {
+        "carto_api_key": carto_key,
+        "default_tile_url": tile_url,
+        "attribution": "&copy; OpenStreetMap contributors &copy; CARTO",
+    }
 
 
 @router.get("/map-markers")
