@@ -25,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, camerasCount, activeA
   }, []);
 
   const titles: Record<NavTab, { title: string; subtitle: string }> = {
+    command_center: { title: 'Universal AI Command Center', subtitle: 'Integrated geospatial intelligence, live camera streams, disaster feeds, and cross-source AI assistant' },
     live: { title: 'Live Camera Operations', subtitle: 'Real-time multi-camera monitoring, motion and detection overlays' },
     hud: { title: 'J.A.R.V.I.S. Holographic 3D HUD', subtitle: 'Real-time quantum reactor core, two-way neural voice copilot, live market intelligence & executive automation' },
     global_map: { title: 'Global Intelligence Radar', subtitle: 'Worldwide hazards (USGS), aviation transponders (OpenSky), open webcams & macroeconomic feeds' },

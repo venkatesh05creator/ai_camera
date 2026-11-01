@@ -4,6 +4,7 @@ import { api, getAuthToken } from './services/api';
 import { NavTab, Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
+import { UnifiedCommandCenter } from './pages/UnifiedCommandCenter';
 import { LiveMonitoring } from './pages/LiveMonitoring';
 import { HolographicHUDView } from './pages/HolographicHUDView';
 import { GlobalIntelligenceMapView } from './pages/GlobalIntelligenceMapView';
@@ -16,7 +17,7 @@ import { CameraManagement } from './pages/CameraManagement';
 import { SettingsAudit } from './pages/SettingsAudit';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavTab>('live');
+  const [activeTab, setActiveTab] = useState<NavTab>('command_center');
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getAuthToken());
@@ -114,6 +115,7 @@ export const App: React.FC = () => {
         />
 
         <main className="app-main-viewport">
+          {activeTab === 'command_center' && <UnifiedCommandCenter />}
           {activeTab === 'live' && (
             <LiveMonitoring cameras={cameras} onOpenEvents={() => setActiveTab('events')} />
           )}

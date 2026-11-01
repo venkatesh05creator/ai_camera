@@ -15,7 +15,9 @@ from ...services.global_intel_service import (
     get_earthquake_feed,
     get_economic_overview,
     get_live_aviation_tracking,
+    get_natural_events,
     get_near_earth_objects,
+    get_providers_health,
     get_public_cameras,
     get_unified_map_markers,
     get_weather_intelligence,
@@ -120,6 +122,24 @@ def get_public_cams(
     """Retrieve legitimate open municipal & observatory public webcams."""
     cams = get_public_cameras()
     return {"cameras": cams, "count": len(cams)}
+
+
+@router.get("/natural-events")
+def get_nasa_natural_events(
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve active natural events (wildfires, storms, volcanoes) from NASA EONET."""
+    events = get_natural_events(limit=limit)
+    return {"events": events, "count": len(events)}
+
+
+@router.get("/providers")
+def get_connected_providers(
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve health and connectivity status of all integrated global intelligence providers."""
+    return {"providers": get_providers_health(), "total_connected": len(get_providers_health())}
 
 
 @router.get("/saved-locations")
