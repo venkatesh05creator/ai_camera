@@ -97,6 +97,26 @@ export const App: React.FC = () => {
 
   const activeAlertsCount = alerts.filter((a) => a.status === 'active').length;
 
+  if (activeTab === 'command_center') {
+    return (
+      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <UnifiedCommandCenter
+          cameras={cameras}
+          onNavigate={(tab: NavTab) => setActiveTab(tab)}
+          activeAlertsCount={activeAlertsCount}
+        />
+        <LoginModal
+          isOpen={showLoginModal}
+          onSuccess={() => {
+            setShowLoginModal(false);
+            setIsAuthenticated(true);
+            fetchInitialData();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* Persistent Navigation Sidebar */}
@@ -115,7 +135,6 @@ export const App: React.FC = () => {
         />
 
         <main className="app-main-viewport">
-          {activeTab === 'command_center' && <UnifiedCommandCenter />}
           {activeTab === 'live' && (
             <LiveMonitoring cameras={cameras} onOpenEvents={() => setActiveTab('events')} />
           )}

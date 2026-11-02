@@ -389,7 +389,10 @@ def get_near_earth_objects(limit: int = 15) -> List[Dict[str, Any]]:
 
     asteroids: List[Dict[str, Any]] = []
     if data and "near_earth_objects" in data:
-        date_entries = data.get("near_earth_objects", {}).get(today_str, [])
+        neo_dict = data.get("near_earth_objects", {})
+        date_entries = neo_dict.get(today_str)
+        if not date_entries:
+            date_entries = [entry for bucket in neo_dict.values() if isinstance(bucket, list) for entry in bucket]
         for item in date_entries:
             diam = item.get("estimated_diameter", {}).get("meters", {})
             min_diam = round(diam.get("estimated_diameter_min", 0.0), 1)
