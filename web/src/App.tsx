@@ -1,23 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Camera, Alert } from './types';
 import { api, getAuthToken } from './services/api';
-import { NavTab, Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
 import { UnifiedCommandCenter } from './pages/UnifiedCommandCenter';
-import { LiveMonitoring } from './pages/LiveMonitoring';
-import { HolographicHUDView } from './pages/HolographicHUDView';
-import { GlobalIntelligenceMapView } from './pages/GlobalIntelligenceMapView';
-import { AssetTrackingView } from './pages/AssetTrackingView';
-import { AICopilotView } from './pages/AICopilotView';
-import { PeopleDirectory } from './pages/PeopleDirectory';
-import { EventsTimeline } from './pages/EventsTimeline';
-import { ReportsAnalytics } from './pages/ReportsAnalytics';
-import { CameraManagement } from './pages/CameraManagement';
-import { SettingsAudit } from './pages/SettingsAudit';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<NavTab>('command_center');
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!getAuthToken());
@@ -97,62 +84,16 @@ export const App: React.FC = () => {
 
   const activeAlertsCount = alerts.filter((a) => a.status === 'active').length;
 
-  if (activeTab === 'command_center') {
-    return (
-      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-        <UnifiedCommandCenter
-          cameras={cameras}
-          onNavigate={(tab: NavTab) => setActiveTab(tab)}
-          activeAlertsCount={activeAlertsCount}
-        />
-        <LoginModal
-          isOpen={showLoginModal}
-          onSuccess={() => {
-            setShowLoginModal(false);
-            setIsAuthenticated(true);
-            fetchInitialData();
-          }}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="app-container">
-      {/* Persistent Navigation Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+    <div style={{ width: '100vw', minHeight: '100vh', background: '#060b18', overflowX: 'hidden' }}>
+      <UnifiedCommandCenter
+        cameras={cameras}
+        alerts={alerts}
         activeAlertsCount={activeAlertsCount}
+        onRefreshCameras={fetchInitialData}
       />
 
-      {/* Main Content Area */}
-      <div className="main-content-col">
-        <Header
-          activeTab={activeTab}
-          camerasCount={cameras.filter((c) => c.status === 'online').length}
-          activeAlertsCount={activeAlertsCount}
-        />
-
-        <main className="app-main-viewport">
-          {activeTab === 'live' && (
-            <LiveMonitoring cameras={cameras} onOpenEvents={() => setActiveTab('events')} />
-          )}
-          {activeTab === 'hud' && <HolographicHUDView cameras={cameras} />}
-          {activeTab === 'global_map' && <GlobalIntelligenceMapView />}
-          {activeTab === 'assets' && <AssetTrackingView />}
-          {activeTab === 'ai' && <AICopilotView />}
-          {activeTab === 'people' && <PeopleDirectory />}
-          {activeTab === 'events' && <EventsTimeline />}
-          {activeTab === 'reports' && <ReportsAnalytics />}
-          {activeTab === 'cameras' && (
-            <CameraManagement cameras={cameras} onRefresh={fetchInitialData} />
-          )}
-          {activeTab === 'settings' && <SettingsAudit />}
-        </main>
-      </div>
-
-      {/* Secure Authentication & Initial Owner Setup Modal */}
+      {/* Secure Authentication Modal */}
       <LoginModal
         isOpen={showLoginModal}
         onSuccess={() => {
