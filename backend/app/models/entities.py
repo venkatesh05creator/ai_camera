@@ -51,6 +51,7 @@ class User(Base):
     assets: Mapped[list["Asset"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     monitoring_rules: Mapped[list["MonitoringRule"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     saved_locations: Mapped[list["SavedLocation"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    memories: Mapped[list["UserMemory"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Camera(Base):
@@ -344,4 +345,19 @@ class SavedLocation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     owner: Mapped[User] = relationship(back_populates="saved_locations")
+
+class UserMemory(Base):
+    """Explicit, user-controlled long-term memory records and preferences."""
+    __tablename__ = "user_memories"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    memory_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    memory_value: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(64), default="preference", nullable=False)  # preference, location, asset, rule, fact
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="memories")
 

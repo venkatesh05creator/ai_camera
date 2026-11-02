@@ -743,3 +743,81 @@ def detect_objects_endpoint(
         ],
     }
 
+# ---------------------------------------------------------------------------
+# Explicit User Long-Term Memory (Persistent Preferences & Facts)
+# ---------------------------------------------------------------------------
+
+class UserMemoryCreate(BaseModel):
+    memory_key: str = Field(..., min_length=1, max_length=120)
+    memory_value: str = Field(..., min_length=1, max_length=2000)
+    category: str = Field("preference", max_length=64)
+
+
+@router.get("/memories")
+def list_user_memories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve explicit user-approved memory records for authenticated user."""
+    from ...models.entities import UserMemory
+    memories = db.query(UserMemory).filter(
+        UserMemory.user_id == current_user.id,
+        UserMemory.is_active == True,
+    ).order_by(UserMemory.updated_at.desc()).all()
+    return [
+        {
+            "id": m.id,
+            "memory_key": m.memory_key,
+            "memory_value": m.memory_value,
+            "category": m.category,
+            "created_at": m.created_at.isoformat(),
+            "updated_at": m.updated_at.isoformat(),
+        }
+        for m in memories
+    ]
+
+
+@router.post("/memories")
+def create_user_memory(
+    req: UserMemoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save an approved user preference or long-term memory record."""
+    from ...models.entities import UserMemory
+    mem = UserMemory(
+        user_id=current_user.id,
+        memory_key=req.memory_key.strip(),
+        memory_value=req.memory_value.strip(),
+        category=req.category.strip(),
+    )
+    db.add(mem)
+    db.commit()
+    db.refresh(mem)
+    return {
+        "status": "success",
+        "id": mem.id,
+        "memory_key": mem.memory_key,
+        "memory_value": mem.memory_value,
+        "category": mem.category,
+    }
+
+
+@router.delete("/memories/{memory_id}")
+def delete_user_memory(
+    memory_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete an explicit user memory record."""
+    from ...models.entities import UserMemory
+    mem = db.query(UserMemory).filter(
+        UserMemory.id == memory_id,
+        UserMemory.user_id == current_user.id,
+    ).first()
+    if not mem:
+        raise HTTPException(status_code=404, detail="Memory record not found")
+    db.delete(mem)
+    db.commit()
+    return {"status": "success", "message": "Memory record deleted"}
+

@@ -1510,8 +1510,8 @@ class AIOrchestrator:
                     ctx.answer = f"🔍 **Information about {doc.get('title')}:**\n\n{doc.get('extract')}\n\n*Source: {doc.get('source')}*"
                     ctx.speech_text = f"According to {doc.get('source')}: {doc.get('extract')[:180]}"
                 else:
-                    ctx.answer = f"I checked current verified information sources, but found no recent updates for '{topic or ctx.query}'. I will continue monitoring for updates."
-                    ctx.speech_text = f"I checked current sources for {topic or ctx.query}, but no updates were found."
+                    ctx.answer = f"I checked current verified news sources, but found no recent news headlines or updates for '{topic or ctx.query}'. I will continue monitoring for news updates."
+                    ctx.speech_text = f"I checked current news sources for {topic or ctx.query}, but no headlines were found."
             ctx.execution_status = "success"
 
         # ---------------------------------------------------------------------

@@ -347,6 +347,61 @@ export const api = {
       is_historical: boolean;
       events: Array<any>;
     }>(`/events/historical-search?q=${encodeURIComponent(query)}${cameraId ? `&camera_id=${cameraId}` : ''}`),
+
+  // Explicit User Long-Term Memories
+  listMemories: () =>
+    request<Array<{
+      id: string;
+      memory_key: string;
+      memory_value: string;
+      category: string;
+      created_at: string;
+      updated_at: string;
+    }>>('/ai/memories'),
+
+  createMemory: (data: { memory_key: string; memory_value: string; category?: string }) =>
+    request<{
+      status: string;
+      id: string;
+      memory_key: string;
+      memory_value: string;
+      category: string;
+    }>('/ai/memories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteMemory: (memoryId: string) =>
+    request<{ status: string; message: string }>(`/ai/memories/${memoryId}`, {
+      method: 'DELETE',
+    }),
+
+  // Global Weather & AQI Telemetry
+  getLiveWeather: (lat = 28.6139, lon = 77.2090, label = 'Local Area') =>
+    request<{
+      domain: string;
+      location_name: string;
+      latitude: number;
+      longitude: number;
+      temperature_c: number | null;
+      apparent_temp_c: number | null;
+      humidity_pct: number | null;
+      precipitation_mm: number | null;
+      wind_speed_kmh: number | null;
+      pressure_hpa: number | null;
+      condition: string;
+      weather_code: number;
+      aqi?: number | null;
+      aqi_category?: string;
+      daily_forecast: Array<{
+        date: string;
+        temp_max: number | null;
+        temp_min: number | null;
+        condition: string;
+      }>;
+      source_name: string;
+      timestamp: string;
+    }>(`/global/weather?latitude=${lat}&longitude=${lon}&location_name=${encodeURIComponent(label)}`),
 };
 
 

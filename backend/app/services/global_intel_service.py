@@ -243,6 +243,36 @@ def get_weather_intelligence(
                 "condition": _WMO_WEATHER_MAP.get(w_codes[i] if i < len(w_codes) else 0, "Unknown"),
             })
 
+    # Fetch verified Air Quality Index (AQI) via Open-Meteo Air Quality REST API
+    try:
+        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={latitude}&longitude={longitude}&current=us_aqi,pm2_5"
+        aqi_data = _http_get_json(aqi_url, timeout=4.0)
+        if aqi_data and "current" in aqi_data:
+            us_aqi = aqi_data["current"].get("us_aqi")
+            pm25 = aqi_data["current"].get("pm2_5")
+            result["aqi"] = us_aqi
+            result["pm2_5"] = pm25
+            if us_aqi is not None:
+                if us_aqi <= 50:
+                    result["aqi_category"] = "Good"
+                elif us_aqi <= 100:
+                    result["aqi_category"] = "Moderate"
+                elif us_aqi <= 150:
+                    result["aqi_category"] = "Sensitive"
+                elif us_aqi <= 200:
+                    result["aqi_category"] = "Unhealthy"
+                else:
+                    result["aqi_category"] = "Hazardous"
+            else:
+                result["aqi_category"] = "Unavailable"
+        else:
+            result["aqi"] = None
+            result["aqi_category"] = "Unavailable"
+    except Exception as exc:
+        logger.debug("Air quality API fetch skipped: %s", exc)
+        result["aqi"] = None
+        result["aqi_category"] = "Unavailable"
+
     _set_cached(cache_key, result)
     return result
 
