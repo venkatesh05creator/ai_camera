@@ -15,7 +15,7 @@ from ...models.entities import User, SavedLocation
 from ...services.global_intel_service import (
     get_earthquake_feed,
     get_economic_overview,
-    get_live_aviation_tracking,
+    get_live_traffic_intelligence,
     get_natural_events,
     get_near_earth_objects,
     get_providers_health,
@@ -51,13 +51,14 @@ def get_map_config(current_user: User = Depends(get_current_user)):
 @router.get("/map-markers")
 def get_map_markers(
     include_disasters: bool = Query(True),
-    include_flights: bool = Query(True),
+    include_traffic: bool = Query(True),
     include_cameras: bool = Query(True),
     include_weather: bool = Query(True),
+    include_security: bool = Query(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve unified map markers across disasters, public cameras, aircraft, and saved locations."""
+    """Retrieve unified map markers across disasters, public cameras, traffic, security perimeter, and saved locations."""
     # Fetch user's saved locations
     saved_stmt = select(SavedLocation).where(SavedLocation.owner_user_id == current_user.id)
     saved_locs = db.scalars(saved_stmt).all()
@@ -68,9 +69,10 @@ def get_map_markers(
 
     markers = get_unified_map_markers(
         include_disasters=include_disasters,
-        include_flights=include_flights,
+        include_traffic=include_traffic,
         include_public_cams=include_cameras,
         include_weather=include_weather,
+        include_security=include_security,
         user_saved_locations=locs_data,
     )
     return {"markers": markers, "count": len(markers)}
@@ -98,18 +100,14 @@ def get_weather(
     return get_weather_intelligence(latitude, longitude, location_name)
 
 
-@router.get("/aviation")
-def get_aviation(
-    lat_min: Optional[float] = Query(None),
-    lat_max: Optional[float] = Query(None),
-    lon_min: Optional[float] = Query(None),
-    lon_max: Optional[float] = Query(None),
-    limit: int = Query(40, ge=1, le=150),
+@router.get("/traffic")
+def get_traffic(
+    limit: int = Query(40, ge=1, le=100),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve live aircraft ADS-B telemetry from OpenSky Network."""
-    flights = get_live_aviation_tracking(lat_min, lat_max, lon_min, lon_max, limit=limit)
-    return {"flights": flights, "count": len(flights)}
+    """Retrieve verified municipal traffic feeds and highway checkpoints."""
+    traffic = get_live_traffic_intelligence(limit=limit)
+    return {"traffic": traffic, "count": len(traffic)}
 
 
 @router.get("/economics")

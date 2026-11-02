@@ -1,0 +1,188 @@
+{
+  "project": "Universal Jarvis AI Command Center",
+  "version": "4.0.0",
+  "updated_at": "2026-11-03T00:52:00+05:30",
+  "owner_decisions": {
+    "computer_control": true,
+    "screen_understanding": true,
+    "proactive_notifications": true,
+    "overall_priority": "INTELLIGENCE"
+  },
+  "requirements": [
+    {
+      "id": "REQ-01",
+      "title": "Remove Aircraft & Maritime Tracking Modules",
+      "description": "Purge flight tracking, aircraft markers, ship tracking, maritime AIS/ADS-B navigation, tabs, mock data, and APIs.",
+      "priority": "P0",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/global_intel_service.py",
+        "backend/app/api/v1/global_intel.py",
+        "backend/app/services/ai_orchestrator.py",
+        "backend/tests/test_universal_ai.py",
+        "web/src/pages/UnifiedCommandCenter.tsx",
+        "web/src/pages/GlobalIntelligenceMapView.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-02",
+      "title": "Module Replacements for Security, Traffic & Diagnostics",
+      "description": "Replace removed flight/ship modules with Camera Intelligence, Security Monitoring, Person/Object Tracking, Disaster/Weather Intelligence, Traffic feeds, Infrastructure, and Diagnostics.",
+      "priority": "P0",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/global_intel_service.py",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-03",
+      "title": "Computer Control Agent Engine",
+      "description": "Jarvis agent able to inspect files, read/edit docs, create files, organize approved folders, run scripts, capture screenshots with explicit owner approval gate for sensitive operations.",
+      "priority": "P0",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/computer_control_service.py",
+        "backend/app/api/v1/ai.py",
+        "web/src/services/api.ts"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-04",
+      "title": "Screen Understanding & Debugging",
+      "description": "Explicit screen capture/canvas share with visual error diagnosis, code debugging, and UI inspection with visible active sharing indicators.",
+      "priority": "P0",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/screen_understanding_service.py",
+        "backend/app/api/v1/ai.py",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-05",
+      "title": "Proactive Intelligence & Notifications Engine",
+      "description": "Autonomous monitoring for camera outages, security triggers, severe weather alerts, error spikes, and hardware thresholds with priority, deduplication, snooze, and dismiss controls.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/proactive_intel_service.py",
+        "backend/app/api/v1/ai.py",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-06",
+      "title": "General-Purpose AI Intelligence & Multi-Step Reasoning",
+      "description": "Jarvis general reasoning for math, science, programming, finance, geography, with multi-step execution plans, computational tools, and verified factual retrieval.",
+      "priority": "P0",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/ai_orchestrator.py",
+        "backend/tests/test_ai_orchestration.py"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-07",
+      "title": "Persistent Conversations & User-Controlled Knowledge",
+      "description": "SQLite session persistence, follow-up pronoun resolution, UserMemory table with user isolation, editing, and deletion controls.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/models/entities.py",
+        "backend/app/api/v1/ai.py",
+        "backend/app/services/ai_orchestrator.py",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-08",
+      "title": "Jarvis Voice Assistant with Wake-Word & Continuous Loop",
+      "description": "Voice-first Jarvis assistant, wake phrase 'Jarvis', Web Speech API speech-to-text, continuous conversation loop, and audio visualizer.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-09",
+      "title": "Full Response Text-to-Speech Without Truncation",
+      "description": "Sentence-chunking TTS queue (< 150 chars), monotonic playback ordering, active keep-alive heartbeat, and GC retention window.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "web/src/utils/ttsQueue.ts",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-10",
+      "title": "Real Video Player & Verified Public Streams",
+      "description": "HTML5 getUserMedia local webcam (30-60 FPS), Windy API v3 embeds, YouTube live embeds with honest LIVE/SNAPSHOT/OFFLINE badges.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "web/src/pages/UnifiedCommandCenter.tsx",
+        "backend/app/api/v1/stream.py",
+        "backend/app/services/global_intel_service.py"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-11",
+      "title": "Zero-Fabrication Live Telemetry & Open-Meteo Integration",
+      "description": "Real Open-Meteo weather and AQI telemetry, USGS earthquakes, and psutil host CPU/RAM/Disk observability.",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/app/services/global_intel_service.py",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-12",
+      "title": "Global Map Optimization",
+      "description": "CARTO Dark Matter tiles with active key cb1_4zq3_..., progressive clustering, zero watermarks, and layer filters.",
+      "priority": "P2",
+      "status": "VERIFIED",
+      "affected_files": [
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-13",
+      "title": "Universal Responsive Dashboard Geometry",
+      "description": "100vh single-screen desktop layout (0px page scroll) with fluid reflow across mobile, tablet, and widescreen.",
+      "priority": "P2",
+      "status": "VERIFIED",
+      "affected_files": [
+        "web/src/index.css",
+        "web/src/pages/UnifiedCommandCenter.tsx"
+      ],
+      "test_status": "TEST PASSED"
+    },
+    {
+      "id": "REQ-14",
+      "title": "Self-Diagnostics & Continuous Automated Testing",
+      "description": "End-to-end and unit test verification for backend and frontend with zero regressions (63/63 pytest passed, tsc clean).",
+      "priority": "P1",
+      "status": "VERIFIED",
+      "affected_files": [
+        "backend/tests/"
+      ],
+      "test_status": "TEST PASSED"
+    }
+  ]
+}

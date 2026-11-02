@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
   Globe, 
   Video, 
-  Plane, 
-  Ship, 
+  Shield, 
+  ShieldAlert, 
   Flame, 
   Leaf, 
   BarChart3, 
@@ -57,7 +57,7 @@ declare global {
 
 interface MapMarker {
   id: string;
-  layer: 'disaster' | 'camera' | 'transport' | 'weather' | 'asset' | 'maritime';
+  layer: 'disaster' | 'camera' | 'traffic' | 'weather' | 'asset' | 'security';
   title: string;
   subtitle: string;
   latitude: number;
@@ -137,12 +137,20 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
   // Layer Visibility Filters
   const [layerFilters, setLayerFilters] = useState({
     disaster: true,
-    transport: true,
-    maritime: true,
+    traffic: true,
+    security: true,
     camera: true,
     weather: true,
     asset: true,
   });
+
+  // Screen Understanding & Proactive Notifications State
+  const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
+  const [screenAnalysisReport, setScreenAnalysisReport] = useState<any | null>(null);
+  const [isAnalyzingScreen, setIsAnalyzingScreen] = useState<boolean>(false);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [proactiveNotifs, setProactiveNotifs] = useState<any[]>([]);
+  const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
 
   // Video Feed & Webcam State
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -183,7 +191,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Universal AI Assistant online. Real-time situational awareness active for cameras, airspace, maritime channels, and registered assets. How may I assist you?',
+      content: 'Universal AI Assistant online. Real-time situational awareness active for cameras, security perimeter, municipal traffic feeds, and intelligent automation. How may I assist you?',
       created_at: new Date().toISOString(),
     }
   ]);
@@ -261,28 +269,25 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         setSelectedCamera(cams[0]);
       }
 
-      // 2. Map Markers & Global Feeds
+      // 2. Map Markers & Global Feeds (Traffic, Security, Cameras, Quakes, Weather)
       const markerRes = await fetch(
-        `/api/v1/global/map-markers?include_disasters=${layerFilters.disaster}&include_flights=${layerFilters.transport}&include_cameras=${layerFilters.camera}&include_weather=${layerFilters.weather}`,
+        `/api/v1/global/map-markers?include_disasters=${layerFilters.disaster}&include_traffic=${layerFilters.traffic}&include_cameras=${layerFilters.camera}&include_weather=${layerFilters.weather}&include_security=${layerFilters.security}`,
         { headers }
       );
       if (markerRes.ok) {
         const markerJson = await markerRes.json();
-        let fetchedMarkers: MapMarker[] = markerJson.markers || [];
-
-        // Synthesize maritime markers if not populated
-        if (layerFilters.maritime) {
-          const sampleShips: MapMarker[] = [
-            { id: 'ship-1', layer: 'maritime', title: 'Ever Given (Cargo Vessel)', subtitle: 'Strait of Malacca • Speed: 16.4 kts', latitude: 2.15, longitude: 102.25, severity: 'info', badge: 'Cargo', source: 'AIS Maritime', occurred_at: new Date().toISOString() },
-            { id: 'ship-2', layer: 'maritime', title: 'MSC Oscar (Container Carrier)', subtitle: 'English Channel • Speed: 18.2 kts', latitude: 50.15, longitude: -0.85, severity: 'info', badge: 'Cargo', source: 'AIS Maritime', occurred_at: new Date().toISOString() },
-            { id: 'ship-3', layer: 'maritime', title: 'Maersk Mc-Kinney (Container)', subtitle: 'Pacific Shipping Lane • Speed: 19.1 kts', latitude: 24.5, longitude: -140.2, severity: 'info', badge: 'Transit', source: 'AIS Maritime', occurred_at: new Date().toISOString() },
-            { id: 'ship-4', layer: 'maritime', title: 'Nordic Freedom (Tanker)', subtitle: 'Persian Gulf • Speed: 12.0 kts', latitude: 26.3, longitude: 55.4, severity: 'info', badge: 'Tanker', source: 'AIS Maritime', occurred_at: new Date().toISOString() },
-            { id: 'ship-5', layer: 'maritime', title: 'CMA CGM Jacques Saade', subtitle: 'Suez Northern Approach • Speed: 14.5 kts', latitude: 31.4, longitude: 32.3, severity: 'info', badge: 'Container', source: 'AIS Maritime', occurred_at: new Date().toISOString() },
-          ];
-          fetchedMarkers = [...fetchedMarkers, ...sampleShips];
-        }
-
+        const fetchedMarkers: MapMarker[] = markerJson.markers || [];
         setMarkers(fetchedMarkers);
+      }
+
+      // Check for pending computer control approvals & proactive notifications
+      try {
+        const approvalRes = await api.listPendingApprovals();
+        setPendingApprovals(approvalRes.pending_approvals || []);
+        const notifRes = await api.getProactiveNotifications();
+        setProactiveNotifs(notifRes.notifications || []);
+      } catch (e) {
+        console.warn('Telemetry poll warning:', e);
       }
 
       // 3. Public Webcams Catalog (Windy Webcams & Open DOT Cams)
@@ -399,14 +404,16 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
 
     if (activeFilterPill === 'cameras') {
       result = result.filter((m) => m.layer === 'camera');
-    } else if (activeFilterPill === 'aircraft') {
-      result = result.filter((m) => m.layer === 'transport');
-    } else if (activeFilterPill === 'ships') {
-      result = result.filter((m) => m.layer === 'maritime');
+    } else if (activeFilterPill === 'security') {
+      result = result.filter((m) => m.layer === 'security');
+    } else if (activeFilterPill === 'traffic') {
+      result = result.filter((m) => m.layer === 'traffic');
     } else if (activeFilterPill === 'disasters') {
       result = result.filter((m) => m.layer === 'disaster');
     } else if (activeFilterPill === 'weather') {
       result = result.filter((m) => m.layer === 'weather');
+    } else if (activeFilterPill === 'infrastructure') {
+      result = result.filter((m) => m.layer === 'camera' || m.layer === 'traffic');
     }
 
     if (searchQuery.trim()) {
@@ -434,12 +441,12 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
       let color = '#38bdf8';
       let iconSvg = '';
 
-      if (marker.layer === 'transport') {
+      if (marker.layer === 'traffic') {
         color = '#f97316';
-        iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/></svg>`;
-      } else if (marker.layer === 'maritime') {
+        iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><rect width="18" height="12" x="3" y="6" rx="2"/><line x1="8" y1="18" x2="8" y2="21"/><line x1="16" y1="18" x2="16" y2="21"/><line x1="12" y1="6" x2="12" y2="18"/></svg>`;
+      } else if (marker.layer === 'security') {
         color = '#10b981';
-        iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/></svg>`;
+        iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
       } else if (marker.layer === 'camera') {
         color = '#00d2ff';
         iconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>`;
@@ -843,7 +850,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
   // Recent Alerts list matching screenshot
   const recentAlertsData = [
     { id: 'al-1', type: 'flood', title: 'Flood Alert - Bangkok, Thailand', time: '2 min ago', color: '#ef4444', icon: AlertTriangle },
-    { id: 'al-2', type: 'aircraft', title: 'Aircraft - Unusual Pattern', time: '3 min ago', color: '#f97316', icon: Plane },
+    { id: 'al-2', type: 'security', title: 'Perimeter Alert - Access Verified', time: '3 min ago', color: '#f97316', icon: ShieldAlert },
     { id: 'al-3', type: 'motion', title: 'Motion Detected - Delhi, India', time: '5 min ago', color: '#00d2ff', icon: Video },
     { id: 'al-4', type: 'aqi', title: 'Air Quality Alert - Delhi', time: '7 min ago', color: '#10b981', icon: Leaf },
   ];
@@ -943,30 +950,30 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
           </div>
         </div>
 
-        {/* 2. Aircraft Tracked */}
+        {/* 2. Security Monitoring */}
         <div className="uai-kpi-card">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
-            <Plane size={18} color="#38bdf8" />
+            <Shield size={18} color="#38bdf8" />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="uai-kpi-label">Aircraft Tracked</div>
+            <div className="uai-kpi-label">Security Events</div>
             <div className="uai-kpi-val-row">
-              <span className="uai-kpi-val">{markers.filter((m) => m.layer === 'transport').length.toLocaleString()}</span>
-              <span className="uai-kpi-delta">ADS-B</span>
+              <span className="uai-kpi-val">{(initialAlerts.length || activeAlertsCount).toLocaleString()}</span>
+              <span className="uai-kpi-delta">Perimeter</span>
             </div>
           </div>
         </div>
 
-        {/* 3. Ships Tracked */}
+        {/* 3. Traffic Feeds */}
         <div className="uai-kpi-card">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(14, 165, 233, 0.2)', border: '1px solid rgba(14, 165, 233, 0.4)' }}>
-            <Ship size={18} color="#0ea5e9" />
+            <Activity size={18} color="#0ea5e9" />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div className="uai-kpi-label">Ships Tracked</div>
+            <div className="uai-kpi-label">Traffic Feeds</div>
             <div className="uai-kpi-val-row">
-              <span className="uai-kpi-val">{markers.filter((m) => m.layer === 'maritime').length.toLocaleString()}</span>
-              <span className="uai-kpi-delta">AIS</span>
+              <span className="uai-kpi-val">{markers.filter((m) => m.layer === 'traffic').length.toLocaleString()}</span>
+              <span className="uai-kpi-delta">Active DOT</span>
             </div>
           </div>
         </div>
@@ -1095,8 +1102,8 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'cameras', label: 'Cameras' },
-                    { id: 'aircraft', label: 'Aircraft' },
-                    { id: 'ships', label: 'Ships' },
+                    { id: 'security', label: 'Security' },
+                    { id: 'traffic', label: 'Traffic' },
                     { id: 'disasters', label: 'Disasters' },
                     { id: 'weather', label: 'Weather' },
                     { id: 'infrastructure', label: 'Infrastructure' },
@@ -1830,7 +1837,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 {[
                   'Active earthquakes',
                   'Identify people in view',
-                  'Tracked flights status',
+                  'Inspect screen for errors',
                   'Current weather analysis'
                 ].map((chip) => (
                   <button
@@ -2233,8 +2240,8 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
                 { key: 'disaster', label: 'Active Hazards & USGS Earthquakes', color: '#ef4444' },
-                { key: 'transport', label: 'Aviation Transponders (OpenSky ADS-B)', color: '#f97316' },
-                { key: 'maritime', label: 'AIS Maritime Vessels (Global Shipping)', color: '#10b981' },
+                { key: 'traffic', label: 'Municipal Traffic & Highway Feeds', color: '#f97316' },
+                { key: 'security', label: 'Active Security Perimeter & Monitoring', color: '#10b981' },
                 { key: 'camera', label: 'Surveillance & Public Municipal Webcams', color: '#00d2ff' },
                 { key: 'weather', label: 'Global Weather & Storm Fronts', color: '#a855f7' },
                 { key: 'asset', label: 'Registered Personal Assets & Vehicles', color: '#ec4899' },

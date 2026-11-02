@@ -402,6 +402,80 @@ export const api = {
       source_name: string;
       timestamp: string;
     }>(`/global/weather?latitude=${lat}&longitude=${lon}&location_name=${encodeURIComponent(label)}`),
+
+  // Computer Control Agent
+  searchWorkspaceFiles: (pattern: string, subdirectory = '.', maxResults = 50) =>
+    request<{ success: boolean; count: number; results: Array<{ name: string; relative_path: string; size_bytes: number; modified_at: string }> }>(
+      '/ai/computer/search',
+      { method: 'POST', body: JSON.stringify({ pattern, subdirectory, max_results: maxResults }) }
+    ),
+
+  readWorkspaceDocument: (relativePath: string, maxLines = 400) =>
+    request<{ success: boolean; relative_path: string; content: string; size_bytes: number; line_count: number; truncated: boolean }>(
+      '/ai/computer/read',
+      { method: 'POST', body: JSON.stringify({ relative_path: relativePath, max_lines: maxLines }) }
+    ),
+
+  writeWorkspaceDocument: (relativePath: string, content: string, overwrite = false, approved = false) =>
+    request<{ success?: boolean; status?: string; action_id?: string; message?: string }>(
+      '/ai/computer/write',
+      { method: 'POST', body: JSON.stringify({ relative_path: relativePath, content, overwrite, approved }) }
+    ),
+
+  listPendingApprovals: () =>
+    request<{ pending_approvals: Array<{ action_id: string; action_type: string; relative_path: string; expires_in_seconds: number }> }>(
+      '/ai/computer/pending'
+    ),
+
+  resolvePendingApproval: (actionId: string, approved: boolean) =>
+    request<{ status: string; action_id: string }>(
+      '/ai/computer/resolve',
+      { method: 'POST', body: JSON.stringify({ action_id: actionId, approved }) }
+    ),
+
+  getSystemDiagnostics: () =>
+    request<{ status: string; cpu_percent: number; memory: { total_mb: number; used_mb: number; percent: number }; disk: { total_gb: number; free_gb: number; percent: number }; process_uptime_seconds: number }>(
+      '/ai/computer/diagnostics'
+    ),
+
+  // Screen Understanding
+  analyzeScreenContent: (imageBase64: string, userQuery = '', explicitConsent = true) =>
+    request<{
+      status: string;
+      screen_geometry: { width: number; height: number; aspect_ratio: number };
+      user_query: string;
+      detected_error_lines: string[];
+      diagnosis: string;
+      recommendations: string[];
+      ocr_text_snippet: string;
+    }>('/ai/screen/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ image_base64: imageBase64, user_query: userQuery, explicit_consent: explicitConsent }),
+    }),
+
+  // Proactive Notifications
+  getProactiveNotifications: (limit = 30) =>
+    request<{ notifications: Array<{ id: string; title: string; message: string; category: string; priority: string; timestamp: string; acknowledged: boolean; evidence: any }> }>(
+      `/ai/notifications?limit=${limit}`
+    ),
+
+  evaluateProactiveConditions: (data: { active_cameras_count: number; system_cpu_percent: number; unacknowledged_alerts_count: number; weather_aqi?: number }) =>
+    request<{ dispatched_count: number; notifications: Array<any> }>('/ai/notifications/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  acknowledgeNotification: (notificationId: string) =>
+    request<{ status: string }>(`/ai/notifications/${notificationId}/acknowledge`, { method: 'POST' }),
+
+  dismissNotification: (notificationId: string) =>
+    request<{ status: string }>(`/ai/notifications/${notificationId}/dismiss`, { method: 'POST' }),
+
+  snoozeNotificationCategory: (category: string, minutes = 30) =>
+    request<{ status: string; category: string; minutes: number }>('/ai/notifications/snooze', {
+      method: 'POST',
+      body: JSON.stringify({ category, minutes }),
+    }),
 };
 
 

@@ -821,3 +821,199 @@ def delete_user_memory(
     db.commit()
     return {"status": "success", "message": "Memory record deleted"}
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPUTER CONTROL AGENT ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FileSearchRequest(BaseModel):
+    pattern: str
+    subdirectory: str = "."
+    max_results: int = 50
+
+
+class DocumentReadRequest(BaseModel):
+    relative_path: str
+    max_lines: int = 400
+
+
+class DocumentWriteRequest(BaseModel):
+    relative_path: str
+    content: str
+    overwrite: bool = False
+    approved: bool = False
+
+
+class ApprovalResolutionRequest(BaseModel):
+    action_id: str
+    approved: bool
+
+
+@router.post("/computer/search")
+def search_workspace_files(
+    req: FileSearchRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Search authorized files and documents in workspace."""
+    from ...services.computer_control_service import ComputerControlService
+    return ComputerControlService.search_workspace_files(
+        pattern=req.pattern,
+        subdirectory=req.subdirectory,
+        max_results=req.max_results,
+    )
+
+
+@router.post("/computer/read")
+def read_workspace_document(
+    req: DocumentReadRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Safely read document or script contents within workspace."""
+    from ...services.computer_control_service import ComputerControlService
+    res = ComputerControlService.read_document(req.relative_path, max_lines=req.max_lines)
+    if "error" in res and "not exist" in res["error"]:
+        raise HTTPException(status_code=404, detail=res["error"])
+    return res
+
+
+@router.post("/computer/write")
+def write_workspace_document(
+    req: DocumentWriteRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Create or edit documents with owner approval gating."""
+    from ...services.computer_control_service import ComputerControlService
+    return ComputerControlService.write_document(
+        relative_path=req.relative_path,
+        content=req.content,
+        overwrite=req.overwrite,
+        approved=req.approved,
+    )
+
+
+@router.get("/computer/pending")
+def list_pending_approvals(current_user: User = Depends(get_current_user)):
+    """List pending actions requiring explicit owner authorization."""
+    from ...services.computer_control_service import ComputerControlService
+    return {"pending_approvals": ComputerControlService.list_pending_approvals()}
+
+
+@router.post("/computer/resolve")
+def resolve_pending_approval(
+    req: ApprovalResolutionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Approve or reject a pending sensitive action."""
+    from ...services.computer_control_service import ComputerControlService
+    return ComputerControlService.resolve_approval(req.action_id, req.approved)
+
+
+@router.get("/computer/diagnostics")
+def get_system_diagnostics(current_user: User = Depends(get_current_user)):
+    """Inspect host resource telemetry, memory, and diagnostics."""
+    from ...services.computer_control_service import ComputerControlService
+    return ComputerControlService.inspect_system_diagnostics()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCREEN UNDERSTANDING ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ScreenAnalysisRequest(BaseModel):
+    image_base64: str
+    user_query: str = ""
+    explicit_consent: bool = True
+
+
+@router.post("/screen/analyze")
+def analyze_screen_content(
+    req: ScreenAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Analyze explicitly shared screen capture for errors, debugging, and UI comprehension."""
+    from ...services.screen_understanding_service import ScreenUnderstandingService
+    return ScreenUnderstandingService.analyze_screen_frame(
+        image_base64=req.image_base64,
+        user_query=req.user_query,
+        explicit_consent=req.explicit_consent,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROACTIVE INTELLIGENCE & NOTIFICATIONS ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class EvaluateConditionsRequest(BaseModel):
+    active_cameras_count: int = 1
+    system_cpu_percent: float = 25.0
+    unacknowledged_alerts_count: int = 0
+    weather_aqi: Optional[int] = 42
+
+
+class SnoozeNotificationRequest(BaseModel):
+    category: str
+    minutes: int = 30
+
+
+@router.get("/notifications")
+def get_proactive_notifications(
+    limit: int = 30,
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve active proactive notifications with priorities."""
+    from ...services.proactive_intel_service import ProactiveIntelService
+    return {"notifications": ProactiveIntelService.get_notifications(limit=limit)}
+
+
+@router.post("/notifications/evaluate")
+def evaluate_proactive_conditions(
+    req: EvaluateConditionsRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Trigger condition evaluation based on fresh telemetry."""
+    from ...services.proactive_intel_service import ProactiveIntelService
+    new_dispatched = ProactiveIntelService.evaluate_system_conditions(
+        active_cameras_count=req.active_cameras_count,
+        system_cpu_percent=req.system_cpu_percent,
+        unacknowledged_alerts_count=req.unacknowledged_alerts_count,
+        weather_aqi=req.weather_aqi,
+    )
+    return {
+        "dispatched_count": len(new_dispatched),
+        "notifications": ProactiveIntelService.get_notifications(limit=30),
+    }
+
+
+@router.post("/notifications/{notification_id}/acknowledge")
+def acknowledge_notification(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Mark notification as acknowledged."""
+    from ...services.proactive_intel_service import ProactiveIntelService
+    success = ProactiveIntelService.acknowledge_notification(notification_id)
+    return {"status": "acknowledged" if success else "not_found"}
+
+
+@router.post("/notifications/{notification_id}/dismiss")
+def dismiss_notification(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Dismiss notification from active queue."""
+    from ...services.proactive_intel_service import ProactiveIntelService
+    success = ProactiveIntelService.dismiss_notification(notification_id)
+    return {"status": "dismissed" if success else "not_found"}
+
+
+@router.post("/notifications/snooze")
+def snooze_notification_category(
+    req: SnoozeNotificationRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Snooze proactive notifications for a category."""
+    from ...services.proactive_intel_service import ProactiveIntelService
+    ProactiveIntelService.snooze_category(req.category, req.minutes)
+    return {"status": "snoozed", "category": req.category, "minutes": req.minutes}
+
+

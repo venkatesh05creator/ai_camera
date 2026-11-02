@@ -328,8 +328,8 @@ class IntentClassifier:
         ]):
             return True
         if any(k in q for k in [
-            "aircraft overhead", "flights near", "track flight", "live flights", "air traffic",
-            "planes overhead", "flight tracking", "aviation tracking"
+            "traffic conditions", "roadway traffic", "highway flow", "traffic feeds", "traffic delay",
+            "traffic congestion", "city traffic", "highway conditions"
         ]):
             return True
         if any(k in q for k in [
@@ -1028,7 +1028,7 @@ class SafeToolRegistry:
         from .global_intel_service import (
             get_earthquake_feed,
             get_economic_overview,
-            get_live_aviation_tracking,
+            get_live_traffic_intelligence,
             get_near_earth_objects,
             get_public_cameras,
         )
@@ -1040,10 +1040,10 @@ class SafeToolRegistry:
             quakes = get_earthquake_feed(min_magnitude=3.0, limit=5)
             result["domain"] = "disaster"
             result["data"] = {"earthquakes": quakes}
-        elif any(k in q for k in ["flight", "flights", "aircraft", "plane", "aviation", "air traffic"]):
-            flights = get_live_aviation_tracking(limit=5)
-            result["domain"] = "transport"
-            result["data"] = {"flights": flights}
+        elif any(k in q for k in ["traffic", "highway", "roadway", "congestion", "delay"]):
+            traffic = get_live_traffic_intelligence(limit=5)
+            result["domain"] = "traffic"
+            result["data"] = {"traffic": traffic}
         elif any(k in q for k in ["asteroid", "asteroids", "space", "neo", "near earth"]):
             asteroids = get_near_earth_objects(limit=5)
             result["domain"] = "space"
@@ -1683,15 +1683,15 @@ class AIOrchestrator:
                 else:
                     ctx.answer = "🌍 **Global Natural Disaster Intelligence:**\n\nNo significant seismic events or major disasters reported in the last 24 hours."
                     ctx.speech_text = "No major seismic events reported in the last 24 hours."
-            elif domain == "transport":
-                flights = data.get("flights", [])
-                if flights:
-                    f_list = "\n".join([f"• **{f['callsign']}** from {f['origin_country']}: {f['altitude_ft']:,} ft at {f['speed_knots']} kts" for f in flights[:4]])
-                    ctx.answer = f"✈️ **Live Aviation Telemetry (OpenSky Network):**\n\n{f_list}\n\n*Tracking real-time ADS-B transponder data.*"
-                    ctx.speech_text = f"Tracking live air traffic. {len(flights)} aircraft identified via OpenSky ADS-B network."
+            elif domain == "traffic":
+                traffic_list = data.get("traffic", [])
+                if traffic_list:
+                    t_str = "\n".join([f"• **{t['title']}** ({t['city']}): Flow speed {t['flow_speed_mph']} mph, Delay: {t['delay_minutes']} min ({t['status'].replace('_', ' ').title()})" for t in traffic_list[:4]])
+                    ctx.answer = f"🚗 **Verified Municipal Traffic & Highway Intelligence:**\n\n{t_str}\n\n*Source: Official Municipal DOT Feeds.*"
+                    ctx.speech_text = f"Retrieved verified municipal traffic feeds. {len(traffic_list)} corridors reporting current flow speeds."
                 else:
-                    ctx.answer = "✈️ **Live Aviation Telemetry:** No aircraft states captured in current sector."
-                    ctx.speech_text = "No live flights captured in the target airspace."
+                    ctx.answer = "🚗 **Municipal Traffic Intelligence:** No traffic delay events reported in current monitored corridors."
+                    ctx.speech_text = "Traffic flow is normal across monitored corridors."
             elif domain == "space":
                 asteroids = data.get("asteroids", [])
                 if asteroids:

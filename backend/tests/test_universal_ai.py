@@ -29,7 +29,7 @@ from backend.app.services.asset_tracking_service import (
 from backend.app.services.global_intel_service import (
     get_earthquake_feed,
     get_currency_forex_rates,
-    get_live_aviation_tracking,
+    get_live_traffic_intelligence,
     get_near_earth_objects,
     get_public_cameras,
     get_unified_map_markers,
@@ -285,24 +285,15 @@ def test_weather_adapter_parsing():
         assert len(w["daily_forecast"]) == 2
 
 
-def test_aviation_tracking_parsing():
-    """Verify OpenSky Network state vector decoding."""
-    mock_opensky = {
-        "states": [
-            [
-                "a123bc", "BAW123  ", "United Kingdom", 1700000000, 1700000000,
-                -0.12, 51.50, 10000.0, False, 220.0, 90.0, None, None, None, None, False, 0
-            ]
-        ]
-    }
-
-    with patch("backend.app.services.global_intel_service._http_get_json", return_value=mock_opensky):
-        flights = get_live_aviation_tracking(limit=5)
-        assert len(flights) == 1
-        f = flights[0]
-        assert f["callsign"] == "BAW123"
-        assert f["altitude_ft"] == int(10000.0 * 3.28084)
-        assert f["latitude"] == 51.50
+def test_traffic_intelligence_parsing():
+    """Verify verified traffic feed extraction and corridor delay metrics."""
+    traffic = get_live_traffic_intelligence(limit=5)
+    assert len(traffic) > 0
+    tf = traffic[0]
+    assert "corridor" in tf
+    assert "flow_speed_mph" in tf
+    assert "delay_minutes" in tf
+    assert tf["status"] in ["normal_flow", "moderate_congestion", "heavy_traffic"]
 
 
 def test_space_asteroids_parsing():
@@ -348,18 +339,19 @@ def test_public_cameras_catalog():
 
 
 def test_unified_map_markers_aggregation():
-    """Verify aggregation of earthquakes, public cameras, and flights into unified GeoJSON markers."""
+    """Verify aggregation of earthquakes, public cameras, and traffic feeds into unified GeoJSON markers."""
     with patch("backend.app.services.global_intel_service.get_earthquake_feed", return_value=[
         {"id": "eq1", "title": "M 5.1 Quake", "depth_km": 10.0, "magnitude": 5.1, "latitude": 37.77, "longitude": -122.41, "severity": "high", "source_name": "USGS", "occurred_at": "2026-11-01T12:00:00Z"}
     ]):
-        with patch("backend.app.services.global_intel_service.get_live_aviation_tracking", return_value=[
-            {"id": "fl1", "callsign": "AI101", "origin_country": "India", "altitude_ft": 35000, "speed_knots": 480, "latitude": 28.61, "longitude": 77.20, "source_name": "OpenSky", "source_url": ""}
+        with patch("backend.app.services.global_intel_service.get_live_traffic_intelligence", return_value=[
+            {"id": "tf1", "title": "FDR Drive & 42nd St", "corridor": "FDR Northbound", "flow_speed_mph": 40, "status": "normal_flow", "latitude": 40.74, "longitude": -73.96, "source_name": "NYC DOT", "source_url": ""}
         ]):
             markers = get_unified_map_markers()
             layers = {m["layer"] for m in markers}
             assert "disaster" in layers
             assert "camera" in layers
-            assert "transport" in layers
+            assert "traffic" in layers
+            assert "security" in layers
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -372,7 +364,7 @@ def test_intent_classification_for_global_intel_and_asset_tracking():
     queries_global = [
         "Are there any major earthquakes today?",
         "Check global natural disasters",
-        "Track live flights overhead",
+        "Check roadway traffic conditions",
         "What asteroids are approaching Earth?",
         "Show me public traffic cameras",
         "Check live forex rates and currencies",
@@ -423,4 +415,119 @@ def test_ai_orchestrator_execution_asset_tracking(in_memory_db):
     assert res.execution_status == "success"
     assert "Asset" in res.answer or "Company Van" in res.answer
     assert len(res.speech_text) > 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Computer Control, Screen Understanding & Proactive Intelligence
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_computer_control_service_and_approval_gate():
+    """Verify ComputerControlService safe file search, read, write gating, and diagnostics."""
+    from backend.app.services.computer_control_service import ComputerControlService
+
+    # 1. File search
+    res = ComputerControlService.search_workspace_files("requirements.json")
+    assert res.get("success") is True
+    assert res["count"] >= 1
+    assert any("requirements.json" in r["name"] for r in res["results"])
+
+    # 2. Document read
+    doc = ComputerControlService.read_document("engineering/requirements.json", max_lines=10)
+    assert doc.get("success") is True
+    assert "Universal Jarvis AI Command Center" in doc["content"]
+
+    # 3. Path traversal protection
+    traversal = ComputerControlService.read_document("../../Windows/System32/drivers/etc/hosts")
+    assert "error" in traversal
+
+    # 4. Sensitive write approval gating
+    write_res = ComputerControlService.write_document(
+        relative_path="engineering/requirements.json",
+        content="{\"test\": 1}",
+        overwrite=True,
+        approved=False,
+    )
+    assert write_res["status"] == "requires_approval"
+    action_id = write_res["action_id"]
+
+    # 5. Verify pending list
+    pending = ComputerControlService.list_pending_approvals()
+    assert any(p["action_id"] == action_id for p in pending)
+
+    # 6. Reject pending action
+    reject_res = ComputerControlService.resolve_approval(action_id, approved=False)
+    assert reject_res["status"] == "rejected"
+
+    # 7. Host diagnostics
+    diag = ComputerControlService.inspect_system_diagnostics()
+    assert diag["status"] == "healthy"
+    assert "cpu_percent" in diag
+    assert "memory" in diag
+    assert "disk" in diag
+
+
+def test_screen_understanding_service_consent_and_analysis():
+    """Verify ScreenUnderstandingService requires consent and analyzes screen geometry."""
+    import base64
+    import io
+    from PIL import Image
+    from backend.app.services.screen_understanding_service import ScreenUnderstandingService
+
+    # Create dummy screen image (1920x1080)
+    img = Image.new("RGB", (1920, 1080), color=(15, 23, 42))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    # 1. Consent required
+    no_consent = ScreenUnderstandingService.analyze_screen_frame(b64_str, explicit_consent=False)
+    assert no_consent.get("status") == "consent_required"
+
+    # 2. Successful analysis with consent
+    analysis = ScreenUnderstandingService.analyze_screen_frame(
+        image_base64=b64_str,
+        user_query="Inspect screen for errors",
+        explicit_consent=True,
+    )
+    assert analysis["status"] == "success"
+    assert analysis["screen_geometry"]["width"] == 1920
+    assert analysis["screen_geometry"]["height"] == 1080
+    assert analysis["screen_geometry"]["aspect_ratio"] == 1.78
+    assert "recommendations" in analysis
+
+
+def test_proactive_intel_notifications_lifecycle():
+    """Verify ProactiveIntelService condition evaluation, deduplication, and snooze/dismiss."""
+    from backend.app.services.proactive_intel_service import ProactiveIntelService
+
+    # 1. Trigger camera offline alert
+    dispatched = ProactiveIntelService.evaluate_system_conditions(
+        active_cameras_count=0,
+        system_cpu_percent=10.0,
+        unacknowledged_alerts_count=0,
+    )
+    assert len(dispatched) >= 1
+    assert any(n["category"] == "camera" for n in dispatched)
+
+    # 2. Deduplication prevents immediate re-trigger
+    dup = ProactiveIntelService.evaluate_system_conditions(
+        active_cameras_count=0,
+        system_cpu_percent=10.0,
+        unacknowledged_alerts_count=0,
+    )
+    assert len(dup) == 0
+
+    # 3. Retrieve notifications list
+    notifs = ProactiveIntelService.get_notifications()
+    assert len(notifs) >= 1
+    first_id = notifs[0]["id"]
+
+    # 4. Acknowledge notification
+    ack = ProactiveIntelService.acknowledge_notification(first_id)
+    assert ack is True
+
+    # 5. Dismiss notification
+    dismiss = ProactiveIntelService.dismiss_notification(first_id)
+    assert dismiss is True
+
 

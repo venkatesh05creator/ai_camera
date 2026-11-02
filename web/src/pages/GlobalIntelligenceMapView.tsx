@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   Globe, 
   Flame, 
-  Plane, 
+  Activity, 
   Video, 
   CloudSun, 
   Coins, 
@@ -19,7 +19,7 @@ import { getAuthToken } from '../services/api';
 
 interface MapMarker {
   id: string;
-  layer: 'disaster' | 'camera' | 'transport' | 'weather';
+  layer: 'disaster' | 'camera' | 'traffic' | 'weather';
   title: string;
   subtitle: string;
   latitude: number;
@@ -50,7 +50,7 @@ interface AsteroidItem {
 }
 
 export const GlobalIntelligenceMapView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'map' | 'disasters' | 'aviation' | 'space' | 'economics'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'disasters' | 'traffic' | 'space' | 'economics'>('map');
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [filteredMarkers, setFilteredMarkers] = useState<MapMarker[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
@@ -80,7 +80,7 @@ export const GlobalIntelligenceMapView: React.FC = () => {
     try {
       // 1. Unified Markers
       const res = await fetch(
-        `/api/v1/global/map-markers?include_disasters=${layerFilters.disaster}&include_flights=${layerFilters.transport}&include_cameras=${layerFilters.camera}&include_weather=${layerFilters.weather}`,
+        `/api/v1/global/map-markers?include_disasters=${layerFilters.disaster}&include_traffic=${layerFilters.transport}&include_cameras=${layerFilters.camera}&include_weather=${layerFilters.weather}`,
         { headers }
       );
       if (res.ok) {
@@ -203,7 +203,7 @@ export const GlobalIntelligenceMapView: React.FC = () => {
         {[
           { id: 'map', label: 'Interactive World Radar', icon: Globe },
           { id: 'disasters', label: 'USGS Hazards & Quakes', icon: Flame },
-          { id: 'aviation', label: 'Live Aviation ADS-B', icon: Plane },
+          { id: 'traffic', label: 'Municipal Traffic Feeds', icon: Activity },
           { id: 'space', label: 'Space Asteroids & NEOs', icon: Rocket },
           { id: 'economics', label: 'Forex & Markets', icon: Coins },
         ].map((tab) => {
@@ -281,7 +281,7 @@ export const GlobalIntelligenceMapView: React.FC = () => {
                 <Search size={14} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Filter locations, flights, quakes..."
+                  placeholder="Filter locations, traffic, quakes..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -632,21 +632,21 @@ export const GlobalIntelligenceMapView: React.FC = () => {
         </div>
       )}
 
-      {/* VIEW 3: AVIATION ADS-B RADAR */}
-      {activeTab === 'aviation' && (
+      {/* VIEW 3: TRAFFIC & HIGHWAYS */}
+      {activeTab === 'traffic' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
             <h3 style={{ margin: '0 0 6px', color: 'var(--text-main)', fontSize: '1.1rem' }}>
-              Live Aircraft ADS-B Telemetry (OpenSky Network)
+              Municipal Traffic & Highway Feeds
             </h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Open community transponder receivers reporting callsigns, barometric altitude, and velocity.
+              Verified open municipal sensor feeds reporting flow speeds, congestion delays, and active roadway cameras.
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
             {markers
-              .filter((m) => m.layer === 'transport')
+              .filter((m) => m.layer === 'traffic')
               .map((f) => (
                 <div
                   key={f.id}
@@ -661,10 +661,10 @@ export const GlobalIntelligenceMapView: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.9rem' }}>
-                      ✈️ {f.title}
+                    <span style={{ fontWeight: 700, color: '#f97316', fontSize: '0.9rem' }}>
+                      🚗 {f.title}
                     </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Live ADS-B</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Live DOT Feed</span>
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{f.subtitle}</div>
                   <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
