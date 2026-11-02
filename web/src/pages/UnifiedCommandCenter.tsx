@@ -127,6 +127,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
   const [aiResponse, setAiResponse] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [isExpandedAi, setIsExpandedAi] = useState(false);
 
   // Asset Registration Modal
   const [showAssetModal, setShowAssetModal] = useState(false);
@@ -396,12 +397,12 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
           box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         ">
           <div style="display: flex; gap: 8px; align-items: center;">
-            <div style="width: 48px; height: 36px; border-radius: 6px; overflow: hidden; background: #000; flex-shrink: 0;">
+            <div style="width: 48px; height: 36px; border-radius: 6px; overflow: hidden; background: #000; flex-shrink: 0;" class="aspect-4-3">
               <img src="https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=120&q=80" style="width: 100%; height: 100%; object-fit: cover;" alt="Preview" />
             </div>
-            <div>
-              <div style="font-size: 0.82rem; font-weight: 700; color: #fff;">${marker.title.slice(0, 24)}</div>
-              <div style="font-size: 0.7rem; color: #94a3b8;">${marker.subtitle.slice(0, 28)}</div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="line-clamp-1" style="font-size: 0.82rem; font-weight: 700; color: #fff;">${marker.title}</div>
+              <div class="line-clamp-1" style="font-size: 0.7rem; color: #94a3b8;">${marker.subtitle}</div>
               <div style="display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #34d399; margin-top: 2px;">
                 <span style="width: 5px; height: 5px; border-radius: 50%; background: #10b981;"></span>
                 Online • 1080p
@@ -851,10 +852,11 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 </div>
               </div>
 
-              {/* The Leaflet Canvas */}
+              {/* The Leaflet Canvas with Pro Responsive Proportions */}
               <div 
                 ref={mapContainerRef} 
-                style={{ width: '100%', height: '100%', minHeight: '440px', background: '#070f28' }} 
+                className="aspect-16-9"
+                style={{ width: '100%', height: '100%', minHeight: 'clamp(320px, 45vh, 540px)', background: '#070f28' }} 
               />
             </div>
 
@@ -873,8 +875,8 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                   </span>
                 </div>
 
-                {/* Video Container Frame */}
-                <div className="uai-video-frame">
+                {/* Pro Video Player with Exact 16:9 Aspect Ratio */}
+                <div className="uai-video-frame pro-video-player aspect-16-9">
                   {selectedCamera ? (
                     <img
                       src={`/api/v1/stream/video?camera_id=${selectedCamera.id}`}
@@ -977,7 +979,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                         }}>
                           <AlertIcon size={14} color={item.color} />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#e2e8f0', fontWeight: 500 }}>
+                        <div className="line-clamp-1" style={{ flex: 1, minWidth: 0, color: '#e2e8f0', fontWeight: 500 }}>
                           {item.title}
                         </div>
                         <span className="uai-alert-time">{item.time}</span>
@@ -1098,19 +1100,19 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                   <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#00d2ff', letterSpacing: '0.05em' }}>AI</span>
                 </div>
 
-                {/* Insight Bullets matching screenshot */}
+                {/* Insight Bullets matching screenshot with Pro Line-Clamp Truncation */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: '0.72rem', color: '#e2e8f0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                    <span>High activity in North America</span>
+                    <span className="line-clamp-1">High activity in North America</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                    <span>Flood risk in Southeast Asia</span>
+                    <span className="line-clamp-1">Flood risk in Southeast Asia</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
-                    <span>Normal conditions elsewhere</span>
+                    <span className="line-clamp-1">Normal conditions elsewhere</span>
                   </div>
                 </div>
               </div>
@@ -1314,20 +1316,29 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 ))}
               </div>
 
-              {/* AI Response Display if available */}
+              {/* AI Response Display with Pro Line-Clamp Truncation (Exactly 3 Lines) */}
               {aiResponse && (
-                <div style={{
-                  background: 'rgba(7, 14, 35, 0.95)',
-                  border: '1px solid rgba(0, 210, 255, 0.3)',
-                  borderRadius: 8,
-                  padding: 8,
-                  fontSize: '0.72rem',
-                  lineHeight: 1.4,
-                  color: '#e2e8f0',
-                  maxHeight: 70,
-                  overflowY: 'auto'
-                }}>
-                  {aiResponse}
+                <div 
+                  onClick={() => setIsExpandedAi(!isExpandedAi)}
+                  title="Click to toggle full view"
+                  style={{
+                    background: 'rgba(7, 14, 35, 0.95)',
+                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: '0.72rem',
+                    lineHeight: 1.45,
+                    color: '#e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <p className={isExpandedAi ? '' : 'line-clamp-3'} style={{ margin: 0 }}>
+                    {aiResponse}
+                  </p>
+                  <div style={{ fontSize: '0.62rem', color: '#00d2ff', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span>{isExpandedAi ? 'Show less ▲' : 'Show full analysis (3 lines clamped) ▼'}</span>
+                  </div>
                 </div>
               )}
             </div>
