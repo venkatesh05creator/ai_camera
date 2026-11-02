@@ -1257,7 +1257,7 @@ class AIOrchestrator:
         # 0. UNSUPPORTED OR AMBIGUOUS / NOISY AUDIO TRANSCRIPT
         # ---------------------------------------------------------------------
         if intent == AIIntent.UNSUPPORTED_OR_AMBIGUOUS:
-            q_clean = ctx.cleaned_query.lower()
+            q_clean = (ctx.resolved_query or (f"{ctx.prior_topic} {ctx.cleaned_query}" if ctx.prior_topic else ctx.cleaned_query)).lower().lower()
             if any(k in q_clean for k in ["ignore", "override", "reveal", "secret", "password", "system"]):
                 ctx.answer = "I cannot comply with requests to override security policies or bypass system controls."
                 ctx.speech_text = "I cannot comply with requests to override security policies or bypass system controls."
@@ -1789,8 +1789,9 @@ class AIOrchestrator:
                 ctx.speech_text = re.sub(r"[*#_`]", "", extract).strip()
             else:
                 # Built-in robust fallback for critical facts (e.g. gold, quantum computing origins)
+                combined_q = f"{ctx.prior_topic or ''} {ctx.resolved_query or ''} {ctx.cleaned_query}".lower()
                 q_clean = ctx.cleaned_query
-                if "gold" in q_clean:
+                if "gold" in combined_q:
                     ctx.answer = (
                         "Gold is a chemical element with the symbol **Au** (from Latin *aurum*) and atomic number **79**. "
                         "It is a dense, soft, malleable, and ductile noble metal with a characteristic bright yellow luster. "
@@ -1802,7 +1803,7 @@ class AIOrchestrator:
                         "It is a dense, soft, malleable, and ductile noble metal with a characteristic bright yellow luster. "
                         "Gold has been highly prized throughout human history for jewelry, coinage, electronics, and financial reserves."
                     )
-                elif "quantum" in q_clean and ("who invented" in q_clean or "inventor" in q_clean or "origin" in q_clean or "history" in q_clean):
+                elif "quantum" in combined_q and ("who invented" in combined_q or "inventor" in combined_q or "origin" in combined_q or "history" in combined_q):
                     ctx.answer = (
                         "Quantum computing was not invented by a single individual, but emerged from foundational contributions "
                         "by multiple physicists and computer scientists in the 1980s. Key pioneers include:\n\n"

@@ -100,6 +100,25 @@ def stream_mjpeg(
     )
 
 
+@router.get("/video")
+def stream_video_query(
+    camera_id: str = Query(...),
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """Direct streaming endpoint supporting camera_id query parameter and token."""
+    user = get_stream_user_optional(token=token, authorization=authorization, db=db)
+    camera = db.get(Camera, camera_id)
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    return StreamingResponse(
+        _generate_mjpeg_frames(camera_id),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
 @router.get("/snapshot/{filename}")
 def get_snapshot(
     filename: str,

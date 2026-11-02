@@ -3141,3 +3141,80 @@ h1, h2, h3, h4, .font-display {
 }
 
 
+
+/* ========================================================================= */
+/* DESKTOP SINGLE-SCREEN VIEWPORT-FITTED GEOMETRY (0PX VERTICAL SCROLL)     */
+/* ========================================================================= */
+@media (min-width: 1025px) {
+  .uai-dashboard-root {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+  .uai-header-bar {
+    height: 54px;
+    padding: 6px 16px;
+    flex-shrink: 0;
+  }
+  .uai-kpi-grid {
+    padding: 6px 16px 4px 16px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .uai-kpi-card {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .uai-workspace-layout {
+    flex: 1;
+    min-height: 0;
+    padding: 4px 16px 6px 16px;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .uai-center-workspace {
+    flex: 1;
+    min-height: 0;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .uai-upper-section {
+    flex: 1.45;
+    min-height: 0;
+    gap: 8px;
+  }
+  .uai-map-container-card {
+    height: 100%;
+    min-height: 0;
+  }
+  .uai-right-stack {
+    height: 100%;
+    min-height: 0;
+    gap: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .uai-camera-card {
+    flex-shrink: 0;
+  }
+  .uai-alerts-card {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .uai-lower-grid {
+    flex: 1;
+    min-height: 0;
+    gap: 8px;
+  }
+  .uai-intel-card {
+    height: 100%;
+    min-height: 0;
+    padding: 8px 10px;
+  }
+  .uai-footer-bar {
+    height: 30px;
+    padding: 4px 16px;
+    flex-shrink: 0;
+  }
+}
