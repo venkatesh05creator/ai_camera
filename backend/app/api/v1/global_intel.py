@@ -38,9 +38,9 @@ class SavedLocationCreate(BaseModel):
 def get_map_config(current_user: User = Depends(get_current_user)):
     """Return client-side GIS map configuration and API tokens."""
     carto_key = os.environ.get("CARTO_API_KEY", "").strip() or os.environ.get("MAP_API_KEY", "").strip()
-    tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    tile_url = "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
     if carto_key:
-        tile_url += f"?api_key={carto_key}"
+        tile_url += f"?key={carto_key}"
     return {
         "carto_api_key": carto_key,
         "default_tile_url": tile_url,

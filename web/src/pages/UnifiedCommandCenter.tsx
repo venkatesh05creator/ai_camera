@@ -261,11 +261,11 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         attributionControl: false,
       });
 
-      // CartoDB Dark Matter with User's Carto Key
+      // CartoDB Dark Matter with User's Carto Key (Official CARTO rastertiles format)
       const cartoKey = 'cb1_4zq3_1_ea5a143596137f10fbecccc4';
       const tileUrl = cartoKey 
-        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
-        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${cartoKey}`
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
 
       window.L.tileLayer(tileUrl, {
         subdomains: 'abcd',
