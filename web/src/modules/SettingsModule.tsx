@@ -253,3 +253,4 @@ export const SettingsModule: React.FC<SettingsModuleProps> = ({
     </div>
   );
 };
+

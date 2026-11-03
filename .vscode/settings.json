@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "C:\\Users\\Venkatesh\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/backend"
+  ],
+  "python.envFile": "${workspaceFolder}/.env",
+  "terminal.integrated.env.windows": {
+    "MPLCONFIGDIR": "${env:TEMP}",
+    "PYTHONPATH": "${workspaceFolder};${workspaceFolder}\\backend"
+  }
+}
