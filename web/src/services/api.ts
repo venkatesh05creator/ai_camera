@@ -484,6 +484,33 @@ export const api = {
 
   getUnifiedMapMarkers: (params?: Record<string, any>) =>
     request<any>('/global/map-markers'),
+
+  detectLiveFace: (imageBase64: string, cameraId = 'webcam', confidenceThreshold = 0.52) =>
+    request<{
+      status: string;
+      camera_id: string;
+      timestamp: string;
+      total_subjects_detected: number;
+      primary_subject: any | null;
+      detections: Array<{
+        temporary_id: string;
+        bbox: number[];
+        relative_bbox: number[];
+        verification_status: string;
+        match_confidence: number;
+        reason?: string;
+        candidate_name?: string;
+        person?: { id: string; name: string; role: string; contact?: string; notes?: string };
+        observations?: { clothing?: string; position?: string; frame_coverage_pct?: number };
+      }>;
+    }>('/ai/live-detect', {
+      method: 'POST',
+      body: JSON.stringify({
+        image_base64: imageBase64,
+        camera_id: cameraId,
+        confidence_threshold: confidenceThreshold,
+      }),
+    }),
 };
 
 

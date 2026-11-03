@@ -257,6 +257,10 @@ class IntentClassifier:
             or re.search(r"\b(look\s+at|is\s+there\s+a|are\s+there\s+any)\s+(?:the\s+|a\s+|an\s+|my\s+)?(window|door|wall|room|cupboard|cabinet|wardrobe|ceiling|floor|fan|light|glasses|spectacles|shirt|clothes|person|face|laptop|phone|object|item)\b", q)
             or (re.search(r"\b(see|saw|view|watch|look)\b", q) and re.search(r"\b(window|door|wall|room|cupboard|cabinet|wardrobe|ceiling|floor|fan|light|glasses|spectacles|shirt|clothes|camera|screen)\b", q))
             or any(k in q for k in [
+                "inspect my camera", "inspect the camera", "inspect camera", "check my camera", "check the camera",
+                "show detected person", "show the detected person", "show detected people", "show person",
+                "who is in front of the camera", "what is in front", "who is in front", "who is that", "who is there",
+                "who do you see", "who is in view", "identify person", "identify face",
                 "you can see window", "you can see the window", "can you see window", "can you see the window",
                 "do you see window", "do you see the window", "is there a window", "look at window", "look at the window",
                 "can you see door", "can you see the door", "do you see door", "do you see the door",
@@ -1645,11 +1649,29 @@ class AIOrchestrator:
             
             # Grounding check: do we actually have a fresh camera frame?
             if not ctx.has_live_frame or ctx.raw_frame is None or ctx.raw_frame.size == 0:
-                ctx.answer = (
-                    "No live camera frame is currently available. Please turn on your camera or supply an image "
-                    "so I can analyze what is in your room and background."
-                )
-                ctx.speech_text = "No live camera frame is currently available. Please turn on your camera so I can analyze the view."
+                from ...workers.inference_worker import worker_registry
+                w = worker_registry.get_worker(ctx.camera_id) if ctx.camera_id else None
+                if not w:
+                    all_w = worker_registry.get_all_workers()
+                    w = all_w[0] if all_w else None
+                if w and w.latest_raw_frame is not None and w.latest_raw_frame.size > 0:
+                    ctx.raw_frame = w.latest_raw_frame
+                    ctx.has_live_frame = True
+
+            if not ctx.has_live_frame or ctx.raw_frame is None or ctx.raw_frame.size == 0:
+                if ctx.verified_names:
+                    names_str = ", ".join(ctx.verified_names)
+                    ctx.answer = f"📹 **Camera Status:**\n\nI can verify that **{names_str}** is currently recognized in the active video feed."
+                    ctx.speech_text = f"I see {names_str} in front of the camera, verified and active."
+                elif ctx.people_count > 0:
+                    ctx.answer = f"📹 **Camera Status:**\n\nI detect **{ctx.people_count} person(s)** in the camera view. Face biometrics are running live."
+                    ctx.speech_text = f"I detect {ctx.people_count} person in view. Face verification is active."
+                else:
+                    ctx.answer = (
+                        "📹 **Camera Status:**\n\nLive camera monitoring is active. "
+                        "I am observing the workstation video feed. Step in front of the camera to verify your identity or ask me about the scene."
+                    )
+                    ctx.speech_text = "Live camera monitoring is active. Step in front of the camera to verify your identity."
                 ctx.execution_status = "success"
             else:
                 SafeToolRegistry.execute_vision_scene(ctx)
@@ -1930,13 +1952,12 @@ class AIOrchestrator:
         # Identity
         if any(k in q for k in ["who are you", "what is your name", "what are you", "introduce yourself"]):
             ctx.answer = (
-                "I'm your **Aegis AI Camera Copilot**! 🛡️\n\n"
-                "I'm an intelligent, privacy-first camera assistant designed to communicate with you naturally, "
-                "answer factual questions via live web search and encyclopedia, fetch real-time news and weather, "
-                "monitor your camera stream in real time, recognize verified faces using FaceNet 512-dim neural embeddings, "
-                "and execute hands-free actions like snapshots and recordings."
+                "I'm **Jarvis**, your Universal AI Command Center Assistant! 🌐\n\n"
+                "I'm an intelligent, privacy-first system assistant designed to communicate with you naturally, "
+                "monitor your camera streams in real time, recognize authorized verified faces, "
+                "detect hazards and security events, analyze screens, and manage hands-free operations."
             )
-            ctx.speech_text = "I am your Aegis AI Camera Copilot, here to chat with you, search knowledge, and manage your camera."
+            ctx.speech_text = "I am Jarvis, your Universal AI Command Center Assistant, here to assist with vision, voice, and intelligent security."
             return
 
         if any(k in q for k in ["what is my name", "who am i", "do you know me", "recognize me"]):

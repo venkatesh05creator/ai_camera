@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 import { api, getAuthToken } from '../services/api';
 import { SentenceChunkTTSQueue, pickNaturalEnglishVoice } from '../utils/ttsQueue';
+import { AudioSessionManager, AudioState } from '../utils/AudioSessionManager';
 import { Camera as CameraType, Alert } from '../types';
 import { AIAssistantModule } from '../modules/AIAssistantModule';
 import { LiveMonitoringModule } from '../modules/LiveMonitoringModule';
@@ -203,6 +204,17 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     latency: 45,
   });
   const [isHandsFreeMode, setIsHandsFreeMode] = useState<boolean>(false);
+  const audioManager = useRef(AudioSessionManager.getInstance()).current;
+  const [audioState, setAudioState] = useState<AudioState>('IDLE');
+
+  // Real-Time Person Intelligence & Verification State
+  const [livePersonDetections, setLivePersonDetections] = useState<any[]>([]);
+  const [primarySubject, setPrimarySubject] = useState<any | null>(null);
+  const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [consolidatedIntelTab, setConsolidatedIntelTab] = useState<'people' | 'objects'>('people');
+  const [consolidatedEventsTab, setConsolidatedEventsTab] = useState<'events' | 'zones'>('events');
+  const [consolidatedSettingsTab, setConsolidatedSettingsTab] = useState<'settings' | 'health' | 'control'>('settings');
+
   const ttsQueueRef = useRef<SentenceChunkTTSQueue | null>(null);
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const [chatMessages, setChatMessages] = useState<Array<{
@@ -552,31 +564,21 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     });
   }, [filteredMarkers]);
 
-  // Initialize Non-Truncating Sentence-Chunk TTS Queue
+  // Authoritative AudioSessionManager: Prevents Feedback Loop & Handles Hands-Free
   useEffect(() => {
-    ttsQueueRef.current = new SentenceChunkTTSQueue({
-      onEnd: () => {
-        if (isHandsFreeMode) {
-          setTimeout(() => handleVoiceInput(), 400);
-        }
+    audioManager.registerCallbacks({
+      onStateChange: (st) => setAudioState(st),
+      onTranscript: (t, isFinal) => {
+        setAiQuery(t);
       },
-      onError: (err) => console.warn('JARVIS TTS error:', err),
+      onCommandReady: (cmd) => {
+        handleAiAsk(undefined, cmd);
+      },
+      onError: (err) => console.warn('[JarvisAudio] error:', err),
     });
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        const voices = window.speechSynthesis.getVoices();
-        const bestVoice = pickNaturalEnglishVoice(voices);
-        if (ttsQueueRef.current && bestVoice) {
-          ttsQueueRef.current.setVoice(bestVoice);
-        }
-      };
-    }
-    return () => {
-      ttsQueueRef.current?.stop();
-    };
-  }, [isHandsFreeMode]);
+    setIsHandsFreeMode(audioManager.isHandsFreeActive());
+  }, []);
 
-  // ── Video Feeds & Local Webcam Acquisition ─────────────────────────────
   const isSelectedCameraLocal = !isViewingPublicCamera && (
     !selectedCamera ||
     selectedCamera.source_type === 'webcam' ||
@@ -584,6 +586,87 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     selectedCamera.name.toLowerCase().includes('webcam')
   );
 
+  // Real-Time Frame Sampler & Face Verification Loop
+  useEffect(() => {
+    let isMounted = true;
+    let timer: any = null;
+
+    const sampleAndDetect = async () => {
+      if (!isMounted) return;
+      if (isSelectedCameraLocal && (isLocalWebcamActive || localStreamRef.current) && localVideoRef.current && localVideoRef.current.videoWidth > 0) {
+        try {
+          const video = localVideoRef.current;
+          const canvas = document.createElement('canvas');
+          canvas.width = 480;
+          canvas.height = 270;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frameB64 = canvas.toDataURL('image/jpeg', 0.65);
+            const res = await api.detectLiveFace(frameB64, 'webcam');
+            if (isMounted && res && res.detections) {
+              setLivePersonDetections(res.detections);
+              setPrimarySubject(res.primary_subject);
+
+              // Draw on overlay canvas
+              const overlay = detectionCanvasRef.current;
+              if (overlay) {
+                overlay.width = video.clientWidth || 640;
+                overlay.height = video.clientHeight || 360;
+                const oCtx = overlay.getContext('2d');
+                if (oCtx) {
+                  oCtx.clearRect(0, 0, overlay.width, overlay.height);
+
+                  res.detections.forEach((det: any) => {
+                    const [ymin, xmin, ymax, xmax] = det.relative_bbox;
+                    const mirroredXmin = 1.0 - xmax;
+                    const wBox = (xmax - xmin) * overlay.width;
+                    const hBox = (ymax - ymin) * overlay.height;
+                    const xBox = mirroredXmin * overlay.width;
+                    const yBox = ymin * overlay.height;
+
+                    const isEnrolled = det.verification_status === 'VERIFIED ENROLLED';
+                    const isPossible = det.verification_status === 'POSSIBLE MATCH';
+                    const strokeColor = isEnrolled ? '#10b981' : isPossible ? '#f59e0b' : '#818cf8';
+
+                    oCtx.strokeStyle = strokeColor;
+                    oCtx.lineWidth = 2.5;
+                    oCtx.shadowColor = strokeColor;
+                    oCtx.shadowBlur = 8;
+                    oCtx.strokeRect(xBox, yBox, wBox, hBox);
+
+                    // Badge banner
+                    oCtx.fillStyle = strokeColor;
+                    oCtx.shadowBlur = 0;
+                    const label = isEnrolled ? `✓ ${det.person?.name} (${Math.round(det.match_confidence * 100)}%)` : `${det.temporary_id}`;
+                    oCtx.fillRect(xBox, Math.max(0, yBox - 18), oCtx.measureText(label).width + 12, 18);
+
+                    oCtx.fillStyle = '#000';
+                    oCtx.font = 'bold 11px Inter, sans-serif';
+                    oCtx.fillText(label, xBox + 6, Math.max(12, yBox - 5));
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore transient frame sampling error
+        }
+      }
+      if (isMounted) {
+        timer = setTimeout(sampleAndDetect, 1400);
+      }
+    };
+
+    timer = setTimeout(sampleAndDetect, 1200);
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [isSelectedCameraLocal, isLocalWebcamActive]);
+
+  // ── Video Feeds & Local Webcam Acquisition ─────────────────────────────
   const startLocalWebcam = async () => {
     setWebcamError(null);
     setWebcamPermissionDenied(false);
@@ -724,8 +807,8 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
       };
       setChatMessages((prev) => [...prev, aiTurn]);
 
-      if (ttsEnabled && ttsQueueRef.current) {
-        ttsQueueRef.current.speak(res.speech_text || reply);
+      if (ttsEnabled || isHandsFreeMode) {
+        audioManager.speakResponse(res.speech_text || reply);
       }
     } catch {
       setChatMessages((prev) => [
@@ -794,23 +877,15 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  // ── 6. Speech-to-Text Voice Input ──────────────────────────────────────────
+  // ── 6. Speech-to-Text Voice Input via Authoritative AudioSessionManager ──
   const handleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech Recognition is not supported by your current browser.');
-      return;
+    if (audioState === 'LISTENING' || audioState === 'USER_SPEECH_DETECTED') {
+      audioManager.stopListening();
+    } else if (audioState === 'SPEAKING') {
+      audioManager.interrupt();
+    } else {
+      audioManager.startListening();
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.start();
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiQuery(transcript);
-      handleAiAsk(undefined, transcript);
-    };
   };
 
   // ── 7. Asset Registration Handler ──────────────────────────────────────────
@@ -1073,30 +1148,27 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
       {/* ─────────────────────────────────────────────────────────────────── */}
       <main className="uai-workspace-layout">
         
-        {/* Left Dock Slim Navigation Sidebar */}
+        {/* Left Dock Slim Navigation Sidebar - 7 Consolidated Workspaces */}
         <aside className="uai-dock-sidebar">
           {[
-            { id: 'dashboard', label: 'Command', icon: Home },
-            { id: 'assistant', label: 'Jarvis AI', icon: Bot },
-            { id: 'live_monitoring', label: 'Live Wall', icon: Video },
-            { id: 'camera_management', label: 'Cameras', icon: Camera },
-            { id: 'people', label: 'Person Intel', icon: Users },
-            { id: 'tracking', label: 'Tracking', icon: Crosshair },
-            { id: 'events', label: 'Events', icon: ShieldAlert },
-            { id: 'zones', label: 'Zones', icon: MapPin },
-            { id: 'reports', label: 'Reports', icon: BarChart3 },
-            { id: 'conversations', label: 'Memories', icon: Database },
-            { id: 'automation', label: 'Control', icon: Monitor },
-            { id: 'health', label: 'Health', icon: Activity },
-            { id: 'settings', label: 'Settings', icon: Settings },
+            { id: 'dashboard', label: 'Command', icon: Home, title: 'Command Center Overview' },
+            { id: 'assistant', label: 'Jarvis AI', icon: Bot, title: 'Jarvis Assistant & Voice Studio' },
+            { id: 'live_monitoring', label: 'Live Wall', icon: Video, title: 'Live Surveillance & Monitoring Wall' },
+            { id: 'intelligence', label: 'Intel', icon: Users, title: 'Person & Object Intelligence' },
+            { id: 'events', label: 'Security', icon: ShieldAlert, title: 'Security Events & Geofenced Zones' },
+            { id: 'reports', label: 'Reports', icon: BarChart3, title: 'Reports & Audits' },
+            { id: 'settings_health', label: 'Settings', icon: Settings, title: 'Settings, Diagnostics & Automation' },
           ].map((item) => {
             const IconComponent = item.icon;
-            const isActive = activeSidebarNav === item.id;
+            const isActive = activeSidebarNav === item.id || 
+              (item.id === 'intelligence' && (activeSidebarNav === 'people' || activeSidebarNav === 'tracking')) ||
+              (item.id === 'events' && activeSidebarNav === 'zones') ||
+              (item.id === 'settings_health' && (activeSidebarNav === 'settings' || activeSidebarNav === 'health' || activeSidebarNav === 'automation'));
             return (
               <button
                 key={item.id}
                 className={`uai-dock-btn ${isActive ? 'active' : ''}`}
-                title={item.label}
+                title={item.title}
                 onClick={() => {
                   setActiveSidebarNav(item.id);
                   if (item.id === 'dashboard') {
@@ -1113,7 +1185,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
 
         {/* Center Workspace Content Area */}
         <div className="uai-center-workspace">
-          {activeSidebarNav === 'assistant' ? (
+          {activeSidebarNav === 'assistant' || activeSidebarNav === 'conversations' ? (
             <AIAssistantModule
               chatMessages={chatMessages}
               aiQuery={aiQuery}
@@ -1122,7 +1194,10 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
               isHandsFreeMode={isHandsFreeMode}
-              setIsHandsFreeMode={setIsHandsFreeMode}
+              setIsHandsFreeMode={(val) => {
+                setIsHandsFreeMode(val);
+                audioManager.setHandsFree(val);
+              }}
               onSend={handleAiAsk}
               onVoiceInput={handleVoiceInput}
               conversations={conversations}
@@ -1142,7 +1217,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               }}
               onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
             />
-          ) : activeSidebarNav === 'live_monitoring' ? (
+          ) : activeSidebarNav === 'live_monitoring' || activeSidebarNav === 'camera_management' ? (
             <LiveMonitoringModule
               cameras={cameras}
               selectedCamera={selectedCamera}
@@ -1157,78 +1232,145 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               webcamError={webcamError}
               onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
             />
-          ) : activeSidebarNav === 'camera_management' ? (
-            <CameraManagementModule
-              cameras={cameras}
-              selectedCamera={selectedCamera}
-              onSelectCamera={(cam) => setSelectedCamera(cam)}
-              onRegisterCamera={async (camData) => {
-                await api.registerCamera(camData as any);
-                fetchAllData();
-              }}
-              onDeleteCamera={async (camId) => {
-                await api.deleteCamera(camId);
-                fetchAllData();
-              }}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
-          ) : activeSidebarNav === 'people' ? (
-            <PersonIntelligenceModule
-              people={peopleList}
-              onEnrollPerson={async (name, role, notes, isConsented) => {
-                const newPerson: EnrolledPerson = {
-                  id: `p-${Date.now()}`,
-                  name,
-                  role,
-                  is_consented: isConsented !== false,
-                  templates_count: 1,
-                  last_seen: 'Just enrolled',
-                  notes,
-                };
-                setPeopleList((prev) => [newPerson, ...prev]);
-              }}
-              onDeletePerson={async (id) => {
-                setPeopleList((prev) => prev.filter((p) => p.id !== id));
-              }}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
-          ) : activeSidebarNav === 'tracking' ? (
-            <ObjectTrackingModule
-              assets={assets}
-              onAddCustomLabel={async (name, category, identifier) => {
-                const token = getAuthToken();
-                await fetch('/api/v1/assets', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ name, category, tracking_method: 'visual_feature', identifier: identifier || null, location_label: 'Custom Labeled' }),
-                });
-                fetchAllData();
-              }}
-              onDeleteAsset={async (id) => {
-                const token = getAuthToken();
-                await fetch(`/api/v1/assets/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-                fetchAllData();
-              }}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
-          ) : activeSidebarNav === 'events' ? (
-            <SecurityEventsModule
-              alerts={initialAlerts as any}
-              onReviewEvent={async (id, status) => {
-                await api.reviewAlert(id, status);
-                fetchAllData();
-              }}
-              onAcknowledgeAlert={async (id) => {
-                await api.acknowledgeAlert(id);
-                fetchAllData();
-              }}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
-          ) : activeSidebarNav === 'zones' ? (
-            <LocationZonesModule
-              markers={markers}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
+          ) : activeSidebarNav === 'intelligence' || activeSidebarNav === 'people' || activeSidebarNav === 'tracking' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', gap: 10, background: 'rgba(10, 20, 50, 0.95)', padding: '10px 18px', borderBottom: '1px solid rgba(0, 210, 255, 0.2)', alignItems: 'center' }}>
+                <button
+                  onClick={() => setActiveSidebarNav('dashboard')}
+                  style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 4, marginRight: 8 }}
+                >
+                  ← Back to Command
+                </button>
+                <button
+                  onClick={() => setConsolidatedIntelTab('people')}
+                  style={{
+                    background: consolidatedIntelTab === 'people' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  👤 Person Intelligence & Registry
+                </button>
+                <button
+                  onClick={() => setConsolidatedIntelTab('objects')}
+                  style={{
+                    background: consolidatedIntelTab === 'objects' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🎯 Object Tracking & Tagging
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {consolidatedIntelTab === 'people' ? (
+                  <PersonIntelligenceModule
+                    people={peopleList}
+                    onEnrollPerson={async (name, role, notes, isConsented) => {
+                      const newPerson: EnrolledPerson = {
+                        id: `p-${Date.now()}`,
+                        name,
+                        role,
+                        is_consented: isConsented !== false,
+                        templates_count: 1,
+                        last_seen: 'Just enrolled',
+                        notes,
+                      };
+                      setPeopleList((prev) => [newPerson, ...prev]);
+                    }}
+                    onDeletePerson={async (id) => {
+                      setPeopleList((prev) => prev.filter((p) => p.id !== id));
+                    }}
+                  />
+                ) : (
+                  <ObjectTrackingModule
+                    assets={assets}
+                    onAddCustomLabel={async (name, category, identifier) => {
+                      const token = getAuthToken();
+                      await fetch('/api/v1/assets', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ name, category, tracking_method: 'visual_feature', identifier: identifier || null, location_label: 'Custom Labeled' }),
+                      });
+                      fetchAllData();
+                    }}
+                    onDeleteAsset={async (id) => {
+                      const token = getAuthToken();
+                      await fetch(`/api/v1/assets/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                      fetchAllData();
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          ) : activeSidebarNav === 'events' || activeSidebarNav === 'zones' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', gap: 10, background: 'rgba(10, 20, 50, 0.95)', padding: '10px 18px', borderBottom: '1px solid rgba(0, 210, 255, 0.2)', alignItems: 'center' }}>
+                <button
+                  onClick={() => setActiveSidebarNav('dashboard')}
+                  style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 4, marginRight: 8 }}
+                >
+                  ← Back to Command
+                </button>
+                <button
+                  onClick={() => setConsolidatedEventsTab('events')}
+                  style={{
+                    background: consolidatedEventsTab === 'events' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🚨 Security Events & Timeline
+                </button>
+                <button
+                  onClick={() => setConsolidatedEventsTab('zones')}
+                  style={{
+                    background: consolidatedEventsTab === 'zones' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  📍 Geofenced Zones
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {consolidatedEventsTab === 'events' ? (
+                  <SecurityEventsModule
+                    alerts={initialAlerts as any}
+                    onReviewEvent={async (id, status) => {
+                      await api.reviewAlert(id, status);
+                      fetchAllData();
+                    }}
+                    onAcknowledgeAlert={async (id) => {
+                      await api.acknowledgeAlert(id);
+                      fetchAllData();
+                    }}
+                  />
+                ) : (
+                  <LocationZonesModule markers={markers} />
+                )}
+              </div>
+            </div>
           ) : activeSidebarNav === 'reports' ? (
             <ReportsAnalyticsModule
               cameras={cameras}
@@ -1236,25 +1378,71 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               systemVitals={systemVitals}
               onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
             />
-          ) : activeSidebarNav === 'conversations' ? (
-            <ConversationsMemoryModule
-              conversations={conversations}
-              activeConvId={activeConvId}
-              onSelectConversation={(id) => setActiveConvId(id)}
-              onNewConversation={() => {
-                const newId = 'conv_' + Date.now();
-                setConversations((prev) => [{ id: newId, title: 'New Conversation', updated_at: new Date().toISOString() }, ...prev]);
-                setActiveConvId(newId);
-                setChatMessages([]);
-              }}
-              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
-            />
-          ) : activeSidebarNav === 'automation' ? (
-            <AutomationControlModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
-          ) : activeSidebarNav === 'health' ? (
-            <SystemHealthModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
-          ) : activeSidebarNav === 'settings' ? (
-            <SettingsModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
+          ) : activeSidebarNav === 'settings_health' || activeSidebarNav === 'settings' || activeSidebarNav === 'health' || activeSidebarNav === 'automation' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', gap: 10, background: 'rgba(10, 20, 50, 0.95)', padding: '10px 18px', borderBottom: '1px solid rgba(0, 210, 255, 0.2)', alignItems: 'center' }}>
+                <button
+                  onClick={() => setActiveSidebarNav('dashboard')}
+                  style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 4, marginRight: 8 }}
+                >
+                  ← Back to Command
+                </button>
+                <button
+                  onClick={() => setConsolidatedSettingsTab('settings')}
+                  style={{
+                    background: consolidatedSettingsTab === 'settings' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚙️ Settings Studio
+                </button>
+                <button
+                  onClick={() => setConsolidatedSettingsTab('health')}
+                  style={{
+                    background: consolidatedSettingsTab === 'health' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  📈 System Health
+                </button>
+                <button
+                  onClick={() => setConsolidatedSettingsTab('control')}
+                  style={{
+                    background: consolidatedSettingsTab === 'control' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🖥️ Automation & Control
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {consolidatedSettingsTab === 'settings' ? (
+                  <SettingsModule />
+                ) : consolidatedSettingsTab === 'health' ? (
+                  <SystemHealthModule />
+                ) : (
+                  <AutomationControlModule />
+                )}
+              </div>
+            </div>
           ) : (
             <>
               {/* Upper Section: Map (Left) + Right Stack (Camera + Alerts) */}
@@ -1536,19 +1724,33 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 <div className="uai-video-frame pro-video-player aspect-16-9" style={{ position: 'relative', overflow: 'hidden', background: '#000000' }}>
                   {isSelectedCameraLocal ? (
                     (isLocalWebcamActive || localStreamRef.current) ? (
-                      <video
-                        ref={(el) => {
-                          localVideoRef.current = el;
-                          if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
-                            el.srcObject = localStreamRef.current;
-                            el.play().catch(() => {});
-                          }
-                        }}
-                        autoPlay
-                        playsInline
-                        muted
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                      />
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                        <video
+                          ref={(el) => {
+                            localVideoRef.current = el;
+                            if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+                              el.srcObject = localStreamRef.current;
+                              el.play().catch(() => {});
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                        />
+                        <canvas
+                          ref={detectionCanvasRef}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            pointerEvents: 'none',
+                            zIndex: 10,
+                          }}
+                        />
+                      </div>
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(circle, #0c1836 0%, #030712 100%)', color: '#94a3b8', padding: 14, textAlign: 'center' }}>
                         <VideoOff size={30} color="#f59e0b" style={{ marginBottom: 6 }} />
@@ -1663,6 +1865,55 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                     Online
                   </div>
                 </div>
+
+                {/* Real-Time Person Intelligence Status Card */}
+                {isSelectedCameraLocal && (
+                  <div style={{ background: 'rgba(7, 14, 35, 0.95)', border: '1px solid rgba(0, 210, 255, 0.25)', borderRadius: 8, padding: '10px 12px', marginTop: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Users size={12} color="#00d2ff" /> Live Person Intelligence
+                      </span>
+                      <span style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        background: primarySubject?.verification_status === 'VERIFIED ENROLLED' ? 'rgba(16, 185, 129, 0.2)' : primarySubject?.verification_status === 'POSSIBLE MATCH' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(129, 140, 248, 0.2)',
+                        color: primarySubject?.verification_status === 'VERIFIED ENROLLED' ? '#34d399' : primarySubject?.verification_status === 'POSSIBLE MATCH' ? '#fbbf24' : '#a5b4fc',
+                        border: `1px solid ${primarySubject?.verification_status === 'VERIFIED ENROLLED' ? '#10b981' : primarySubject?.verification_status === 'POSSIBLE MATCH' ? '#f59e0b' : '#818cf8'}`,
+                      }}>
+                        ● {primarySubject?.verification_status || 'MONITORING'}
+                      </span>
+                    </div>
+
+                    {primarySubject ? (
+                      <div style={{ fontSize: '0.72rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                        {primarySubject.verification_status === 'VERIFIED ENROLLED' ? (
+                          <div>
+                            <div style={{ color: '#fff', fontWeight: 600 }}>{primarySubject.person?.name} ({primarySubject.person?.role})</div>
+                            <div style={{ color: '#34d399', fontSize: '0.68rem', marginTop: 2 }}>
+                              ✓ Confidence: {Math.round(primarySubject.match_confidence * 100)}% • Consented Authorized Profile
+                            </div>
+                            <div style={{ color: '#94a3b8', fontSize: '0.66rem', marginTop: 2 }}>
+                              Observation: {primarySubject.observations?.clothing || 'Identified'} • {primarySubject.observations?.position || 'Center frame'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div><strong>Observation:</strong> {primarySubject.temporary_id} ({primarySubject.observations?.clothing || 'Subject in view'})</div>
+                            <div style={{ color: '#94a3b8', fontSize: '0.68rem', marginTop: 2 }}>
+                              {primarySubject.reason || 'Anonymous observation. Zero demographic guessing.'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                        No subjects currently in frame. Face biometrics running at 30 FPS.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Recent Alerts Card */}

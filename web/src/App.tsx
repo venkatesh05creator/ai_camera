@@ -3,6 +3,7 @@ import { Camera, Alert } from './types';
 import { api, getAuthToken } from './services/api';
 import { LoginModal } from './components/LoginModal';
 import { UnifiedCommandCenter } from './pages/UnifiedCommandCenter';
+import { FloatingJarvisBubble } from './components/FloatingJarvisBubble';
 
 export const App: React.FC = () => {
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -92,6 +93,9 @@ export const App: React.FC = () => {
         activeAlertsCount={activeAlertsCount}
         onRefreshCameras={fetchInitialData}
       />
+
+      {/* Global Persistent Floating Jarvis Assistant Bubble */}
+      <FloatingJarvisBubble />
 
       {/* Secure Authentication Modal */}
       <LoginModal

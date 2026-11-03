@@ -19,6 +19,8 @@ os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-privacy-surveillance-system-
 os.environ["BIOMETRIC_ENCRYPTION_KEY"] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 os.environ["MEDIA_STORAGE_PATH"] = str(Path(temp_dir) / "media")
 os.environ["SNAPSHOT_STORAGE_PATH"] = str(Path(temp_dir) / "snapshots")
+os.environ["MPLCONFIGDIR"] = temp_dir
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 from backend.app.core.database import Base, get_db
 from backend.app.core.security import create_access_token, hash_password

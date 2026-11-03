@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -741,6 +741,173 @@ def detect_objects_endpoint(
             }
             for d in detected
         ],
+    }
+
+
+@router.post("/live-detect")
+def live_detect_endpoint(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Real-time camera frame person & face intelligence endpoint.
+    Performs quality validation, face detection, authorized enrolled-profile verification,
+    and returns calibrated identity status, bounding boxes, and observations.
+    """
+    image_b64 = payload.get("image_base64", "")
+    camera_id = payload.get("camera_id", "webcam")
+    threshold = float(payload.get("confidence_threshold", 0.52))
+
+    if not image_b64:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image_base64 is required")
+
+    if "," in image_b64:
+        image_b64 = image_b64.split(",", 1)[1]
+
+    try:
+        img_bytes = base64.b64decode(image_b64)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None or frame.size == 0:
+            raise ValueError("Corrupted image data")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid image format: {e}")
+
+    h, w = frame.shape[:2]
+    verifier = FaceVerifier(model_name="facenet")
+    detected_faces = verifier.engine.detect_faces(frame)
+
+    detections = []
+    for idx, (x, y, fw, fh) in enumerate(detected_faces):
+        # 1. Quality validation
+        quality_ok = fw >= 36 and fh >= 36
+        mean_brightness = float(np.mean(frame[max(0, y):min(h, y+fh), max(0, x):min(w, x+fw)]))
+        if mean_brightness < 20 or mean_brightness > 248:
+            quality_ok = False
+
+        relative_bbox = [
+            round(y / h, 4),
+            round(x / w, 4),
+            round((y + fh) / h, 4),
+            round((x + fw) / w, 4),
+        ]
+
+        if not quality_ok:
+            detections.append({
+                "temporary_id": f"P-{str(idx + 1).zfill(3)}",
+                "bbox": [int(x), int(y), int(fw), int(fh)],
+                "relative_bbox": relative_bbox,
+                "verification_status": "INSUFFICIENT QUALITY",
+                "match_confidence": 0.0,
+                "reason": "Face resolution or lighting conditions insufficient for reliable biometric extraction.",
+                "observations": {
+                    "position": "Center" if 0.3 < (x/w) < 0.7 else ("Left" if (x/w) <= 0.3 else "Right"),
+                    "frame_coverage_pct": round((fw * fh) / (w * h) * 100, 1),
+                }
+            })
+            continue
+
+        # 2. Extract embedding
+        face_roi = frame[max(0, y):min(h, y+fh), max(0, x):min(w, x+fw)]
+        emb = verifier.extract_embedding_from_roi(face_roi)
+
+        if emb is None:
+            detections.append({
+                "temporary_id": f"P-{str(idx + 1).zfill(3)}",
+                "bbox": [int(x), int(y), int(fw), int(fh)],
+                "relative_bbox": relative_bbox,
+                "verification_status": "VERIFICATION UNAVAILABLE",
+                "match_confidence": 0.0,
+                "reason": "Biometric feature extractor returned null.",
+            })
+            continue
+
+        # 3. Match against consented templates in DB
+        person_id, person_name, match_score, is_match = verifier.verify_against_consented_templates(
+            db, emb, threshold=threshold
+        )
+
+        # Observations analysis (clothing/torso beneath face)
+        torso_y1 = min(h, y + fh)
+        torso_y2 = min(h, y + int(fh * 2.2))
+        torso_roi = frame[torso_y1:torso_y2, max(0, x - int(fw * 0.2)):min(w, x + int(fw * 1.2))]
+        clothing_desc = "Casual wear"
+        if torso_roi.size > 0:
+            avg_color = np.mean(torso_roi, axis=(0, 1))  # B, G, R
+            if np.mean(avg_color) < 70:
+                clothing_desc = "Dark clothing"
+            elif np.mean(avg_color) > 180:
+                clothing_desc = "Light/White clothing"
+            elif avg_color[0] > avg_color[2] + 25:
+                clothing_desc = "Blue tone clothing"
+            elif avg_color[2] > avg_color[0] + 25:
+                clothing_desc = "Warm/Red tone clothing"
+
+        pos_str = "Center frame" if 0.3 < (x/w) < 0.7 else ("Left frame" if (x/w) <= 0.3 else "Right frame")
+
+        if is_match and person_id:
+            person = db.query(Person).filter(Person.id == person_id).first()
+            detections.append({
+                "temporary_id": f"P-{str(idx + 1).zfill(3)}",
+                "bbox": [int(x), int(y), int(fw), int(fh)],
+                "relative_bbox": relative_bbox,
+                "verification_status": "VERIFIED ENROLLED",
+                "match_confidence": round(float(match_score), 2),
+                "person": {
+                    "id": person.id if person else person_id,
+                    "name": person.name if person else person_name,
+                    "role": person.role_relationship if person else "Authorized",
+                    "contact": person.contact_details if person else "",
+                    "notes": person.notes if person else "",
+                },
+                "observations": {
+                    "clothing": clothing_desc,
+                    "position": pos_str,
+                    "frame_coverage_pct": round((fw * fh) / (w * h) * 100, 1),
+                }
+            })
+        elif match_score >= 0.40:
+            detections.append({
+                "temporary_id": f"P-{str(idx + 1).zfill(3)}",
+                "bbox": [int(x), int(y), int(fw), int(fh)],
+                "relative_bbox": relative_bbox,
+                "verification_status": "POSSIBLE MATCH",
+                "match_confidence": round(float(match_score), 2),
+                "reason": "Confidence below authorized threshold. Human review recommended.",
+                "candidate_name": person_name,
+                "observations": {
+                    "clothing": clothing_desc,
+                    "position": pos_str,
+                    "frame_coverage_pct": round((fw * fh) / (w * h) * 100, 1),
+                }
+            })
+        else:
+            detections.append({
+                "temporary_id": f"P-{str(idx + 1).zfill(3)}",
+                "bbox": [int(x), int(y), int(fw), int(fh)],
+                "relative_bbox": relative_bbox,
+                "verification_status": "UNKNOWN",
+                "match_confidence": round(float(match_score), 2),
+                "reason": "Subject is not registered in the authorized biometric datastore.",
+                "observations": {
+                    "clothing": clothing_desc,
+                    "position": pos_str,
+                    "frame_coverage_pct": round((fw * fh) / (w * h) * 100, 1),
+                }
+            })
+
+    # Cache latest live detection on worker registry or memory for contextual routing
+    worker = worker_registry.get_worker(camera_id) if camera_id else None
+    if worker:
+        setattr(worker, "latest_ai_detections", detections)
+
+    return {
+        "status": "success",
+        "camera_id": camera_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_subjects_detected": len(detections),
+        "primary_subject": detections[0] if detections else None,
+        "detections": detections,
     }
 
 # ---------------------------------------------------------------------------

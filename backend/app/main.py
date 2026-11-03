@@ -186,8 +186,12 @@ def create_app() -> FastAPI:
         return JSONResponse(content=run_retention_sweep())
 
     # Mount Web build if present
-    dist_dir = Path("web/dist")
-    if dist_dir.exists():
+    candidates = [
+        Path("web/dist"),
+        Path(__file__).resolve().parent.parent.parent / "web" / "dist",
+    ]
+    dist_dir = next((p for p in candidates if p.exists()), None)
+    if dist_dir:
         app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="static")
 
     return app
