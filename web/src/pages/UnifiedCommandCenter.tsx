@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   Globe, 
+  LayoutGrid, 
   Video, 
   Shield, 
   ShieldAlert, 
@@ -500,8 +501,8 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
           box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         ">
           <div style="display: flex; gap: 8px; align-items: center;">
-            <div style="width: 48px; height: 36px; border-radius: 6px; overflow: hidden; background: #000; flex-shrink: 0;" class="aspect-4-3">
-              <img src="https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=120&q=80" style="width: 100%; height: 100%; object-fit: cover;" alt="Preview" />
+            <div style="width: 36px; height: 36px; border-radius: 6px; background: rgba(0, 210, 255, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(0, 210, 255, 0.3);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
             </div>
             <div style="flex: 1; min-width: 0;">
               <div class="line-clamp-1" style="font-size: 0.82rem; font-weight: 700; color: #fff;">${marker.title}</div>
@@ -609,6 +610,15 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
     }
     return () => stopLocalWebcam();
   }, [isSelectedCameraLocal, selectedCamera?.id]);
+
+  useEffect(() => {
+    if (isLocalWebcamActive && localStreamRef.current && localVideoRef.current) {
+      if (localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+      localVideoRef.current.play().catch(() => {});
+    }
+  }, [isLocalWebcamActive]);
 
   // Periodic snapshot reload for traffic/observatory feeds
   useEffect(() => {
@@ -1044,12 +1054,13 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         <aside className="uai-dock-sidebar">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: Home },
+            { id: 'live_monitoring', label: 'Live Monitor', icon: Video },
+            { id: 'people', label: 'People Dir', icon: Users },
             { id: 'layers', label: 'Map Layers', icon: Layers },
-            { id: 'cameras', label: 'Cameras', icon: Camera },
             { id: 'tracking', label: 'Tracking', icon: Crosshair },
-            { id: 'disasters', label: 'Disasters', icon: AlertTriangle },
+            { id: 'events', label: 'Events & Alerts', icon: ShieldAlert },
             { id: 'reports', label: 'Reports', icon: BarChart3 },
-            { id: 'assistant', label: 'AI Assistant', icon: Bot },
+            { id: 'assistant', label: 'Jarvis AI', icon: Bot },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map((item) => {
             const IconComponent = item.icon;
@@ -1060,14 +1071,16 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 className={`uai-dock-btn ${isActive ? 'active' : ''}`}
                 onClick={() => {
                   setActiveSidebarNav(item.id);
-                  if (item.id === 'layers') {
-                    setShowLayerModal(true);
-                  } else if (item.id === 'cameras') {
+                  if (item.id === 'live_monitoring') {
                     setShowCameraMatrixModal(true);
+                  } else if (item.id === 'people') {
+                    setShowPeopleModal(true);
+                  } else if (item.id === 'layers') {
+                    setShowLayerModal(true);
                   } else if (item.id === 'tracking') {
                     setShowAssetModal(true);
-                  } else if (item.id === 'disasters') {
-                    setActiveFilterPill('disasters');
+                  } else if (item.id === 'events') {
+                    setShowEventsModal(true);
                   } else if (item.id === 'reports') {
                     setShowReportsModal(true);
                   } else if (item.id === 'assistant') {
@@ -1206,6 +1219,116 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                   </span>
                 </div>
 
+                {/* Quick Source Switcher Tabs: Webcam vs Public vs Wall */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => {
+                      setIsViewingPublicCamera(false);
+                      const localCam = cameras.find((c) => c.source_type === 'webcam' || c.name.toLowerCase().includes('laptop') || c.name.toLowerCase().includes('webcam')) || cameras[0];
+                      if (localCam) setSelectedCamera(localCam);
+                      startLocalWebcam();
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      border: !isViewingPublicCamera ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                      background: !isViewingPublicCamera ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                      color: !isViewingPublicCamera ? '#10b981' : '#94a3b8',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5
+                    }}
+                  >
+                    <Video size={13} />
+                    <span>Laptop Webcam</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsViewingPublicCamera(true);
+                      if (publicCameras.length > 0 && !selectedPublicCamera) {
+                        setSelectedPublicCamera(publicCameras[0]);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      border: isViewingPublicCamera ? '1px solid #00d2ff' : '1px solid rgba(255,255,255,0.1)',
+                      background: isViewingPublicCamera ? 'rgba(0, 210, 255, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                      color: isViewingPublicCamera ? '#00d2ff' : '#94a3b8',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5
+                    }}
+                  >
+                    <Globe size={13} />
+                    <span>Public Webcams ({publicCameras.length || 5})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowCameraMatrixModal(true)}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 6,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(30, 41, 59, 0.6)',
+                      color: '#cbd5e1',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    title="Open Live Surveillance & Public Webcams Matrix"
+                  >
+                    <LayoutGrid size={13} />
+                    <span>Wall</span>
+                  </button>
+                </div>
+
+                {/* Quick Public Webcams Pill Bar */}
+                {isViewingPublicCamera && publicCameras.length > 0 && (
+                  <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+                    {publicCameras.map((pub) => {
+                      const isSel = selectedPublicCamera?.id === pub.id;
+                      return (
+                        <button
+                          key={pub.id}
+                          onClick={() => setSelectedPublicCamera(pub)}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: 4,
+                            fontSize: '0.67rem',
+                            whiteSpace: 'nowrap',
+                            border: isSel ? '1px solid #00d2ff' : '1px solid rgba(255,255,255,0.1)',
+                            background: isSel ? 'rgba(0, 210, 255, 0.25)' : 'rgba(15, 23, 42, 0.7)',
+                            color: isSel ? '#ffffff' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: isSel ? 700 : 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSel ? '#00d2ff' : '#64748b' }} />
+                          {pub.name.replace('Live Broadcast', '').replace('Live View', '').trim()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Camera Quick Switcher Dropdown */}
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <select
@@ -1248,7 +1371,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                     <optgroup label="Global Public Webcams">
                       {publicCameras.map((pub) => (
                         <option key={pub.id} value={`pub_${pub.id}`}>
-                          🌐 {pub.name} ({pub.city}, {pub.country})
+                          🌐 {pub.name} ({pub.location || `${pub.city || ''}, ${pub.country || ''}`.trim() || 'Global'})
                         </option>
                       ))}
                     </optgroup>
@@ -1258,9 +1381,15 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 {/* Pro Video Player with Exact 16:9 Aspect Ratio */}
                 <div className="uai-video-frame pro-video-player aspect-16-9" style={{ position: 'relative', overflow: 'hidden', background: '#000000' }}>
                   {isSelectedCameraLocal ? (
-                    isLocalWebcamActive ? (
+                    (isLocalWebcamActive || localStreamRef.current) ? (
                       <video
-                        ref={localVideoRef}
+                        ref={(el) => {
+                          localVideoRef.current = el;
+                          if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+                            el.srcObject = localStreamRef.current;
+                            el.play().catch(() => {});
+                          }
+                        }}
                         autoPlay
                         playsInline
                         muted
@@ -1967,49 +2096,74 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               {cameraMatrixTab === 'local' && (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                    {cameras.map((c) => (
-                      <div key={c.id} style={{ background: 'rgba(11, 22, 53, 0.75)', border: `1px solid ${selectedCamera?.id === c.id ? '#00d2ff' : 'rgba(0, 210, 255, 0.18)'}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        <div className="pro-video-player aspect-16-9">
-                          <img
-                            src={`/api/v1/stream/video?camera_id=${c.id}`}
-                            alt={c.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=400&q=80';
-                            }}
-                          />
-                          <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.7)', borderRadius: 4, padding: '2px 6px', fontSize: '0.66rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981' }} /> Online
+                    {cameras.map((c) => {
+                      const isWebcam = c.source_type === 'webcam' || c.name.toLowerCase().includes('laptop') || c.name.toLowerCase().includes('webcam');
+                      return (
+                        <div key={c.id} style={{ background: 'rgba(11, 22, 53, 0.75)', border: `1px solid ${selectedCamera?.id === c.id ? '#00d2ff' : 'rgba(0, 210, 255, 0.18)'}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                          <div className="pro-video-player aspect-16-9" style={{ position: 'relative', background: '#000' }}>
+                            {isWebcam ? (
+                              isLocalWebcamActive && localStreamRef.current ? (
+                                <video
+                                  ref={(el) => {
+                                    if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+                                      el.srcObject = localStreamRef.current;
+                                      el.play().catch(() => {});
+                                    }
+                                  }}
+                                  autoPlay
+                                  playsInline
+                                  muted
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.72rem' }}>
+                                  <Video size={24} color="#10b981" style={{ marginBottom: 4 }} />
+                                  <span>Workstation Webcam</span>
+                                </div>
+                              )
+                            ) : (
+                              <img
+                                src={`/api/v1/stream/video?camera_id=${c.id}`}
+                                alt={c.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.7)', borderRadius: 4, padding: '2px 6px', fontSize: '0.66rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981' }} /> Online
+                            </div>
                           </div>
-                        </div>
 
-                        <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff' }}>{c.name}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{c.location_label || 'Default Location'} • 1080p 30fps</div>
+                          <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff' }}>{c.name}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{c.location_label || 'Default Location'} • 1080p 30fps</div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedCamera(c);
+                                setIsViewingPublicCamera(false);
+                                setShowCameraMatrixModal(false);
+                              }}
+                              style={{
+                                padding: '5px 10px',
+                                borderRadius: 6,
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                background: selectedCamera?.id === c.id ? 'rgba(0, 210, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                                border: `1px solid ${selectedCamera?.id === c.id ? '#00d2ff' : 'rgba(255, 255, 255, 0.1)'}`,
+                                color: selectedCamera?.id === c.id ? '#00d2ff' : '#fff',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {selectedCamera?.id === c.id ? 'Primary Feed' : 'Set as Primary'}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedCamera(c);
-                              setIsViewingPublicCamera(false);
-                              setShowCameraMatrixModal(false);
-                            }}
-                            style={{
-                              padding: '5px 10px',
-                              borderRadius: 6,
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              background: selectedCamera?.id === c.id ? 'rgba(0, 210, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                              border: `1px solid ${selectedCamera?.id === c.id ? '#00d2ff' : 'rgba(255, 255, 255, 0.1)'}`,
-                              color: selectedCamera?.id === c.id ? '#00d2ff' : '#fff',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {selectedCamera?.id === c.id ? 'Primary Feed' : 'Set as Primary'}
-                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Add Camera Form Card */}
@@ -2041,24 +2195,39 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
                   {publicCameras.map((pub) => (
                     <div key={pub.id} style={{ background: 'rgba(11, 22, 53, 0.75)', border: '1px solid rgba(0, 210, 255, 0.18)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                      <div className="pro-video-player aspect-16-9">
-                        <img
-                          src={pub.preview_url || 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=400&q=80'}
-                          alt={pub.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=400&q=80';
-                          }}
-                        />
+                      <div className="pro-video-player aspect-16-9" style={{ position: 'relative', background: '#000' }}>
+                        {pub.embed_url ? (
+                          <iframe
+                            src={pub.embed_url}
+                            title={pub.name}
+                            style={{ width: '100%', height: '100%', border: 'none', background: '#000' }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : pub.preview_url ? (
+                          <img
+                            src={pub.preview_url}
+                            alt={pub.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.72rem' }}>
+                            <Globe size={24} color="#00d2ff" style={{ marginBottom: 4 }} />
+                            <span>{pub.name}</span>
+                          </div>
+                        )}
                         <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.7)', borderRadius: 4, padding: '2px 6px', fontSize: '0.66rem', color: '#00d2ff', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          🌐 Public Stream
+                          🌐 Public Live
                         </div>
                       </div>
 
                       <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="line-clamp-1" style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fff' }}>{pub.name}</div>
-                          <div className="line-clamp-1" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{pub.city}, {pub.country} • {pub.provider || 'Windy / DOT'}</div>
+                          <div className="line-clamp-1" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{pub.location || `${pub.city || ''}, ${pub.country || ''}`.trim() || 'Global Feed'}</div>
                         </div>
                         <button
                           onClick={() => {
