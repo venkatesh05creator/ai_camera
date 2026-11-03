@@ -3,7 +3,7 @@
 Aggregates open-source, public-domain, zero-cost intelligence feeds:
 1. Disasters: USGS Real-time Earthquake GeoJSON API
 2. Weather & Air Quality: Open-Meteo REST API
-3. Aviation: OpenSky Network ADS-B flights
+3. Traffic: Municipal & Highway Traffic Feeds
 4. Currencies & Forex: Frankfurter API (European Central Bank reference rates)
 5. Space & Asteroids: NASA NeoWs (Near Earth Object Web Service)
 6. Public Infrastructure & Webcams: Curated open municipal/weather cameras

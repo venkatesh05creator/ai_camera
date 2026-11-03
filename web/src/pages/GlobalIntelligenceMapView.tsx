@@ -433,7 +433,7 @@ export const GlobalIntelligenceMapView: React.FC = () => {
               }}
             >
               <span>Active Telemetry Points: <strong>{markers.length}</strong></span>
-              <span>Sources: USGS Hazards • OpenSky ADS-B • Open-Meteo • NASA NeoWs</span>
+              <span>Sources: USGS Hazards • Municipal Traffic • Open-Meteo • NASA NeoWs</span>
             </div>
           </div>
 
@@ -524,7 +524,7 @@ export const GlobalIntelligenceMapView: React.FC = () => {
                 <MapPin size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                 <h4 style={{ margin: '0 0 6px', color: 'var(--text-main)', fontSize: '0.95rem' }}>Select a Marker</h4>
                 <p style={{ fontSize: '0.8rem', margin: 0 }}>
-                  Click any marker on the world radar to inspect real-time earthquake magnitude, aircraft altitude, or webcam coordinates.
+                  Click any marker on the world radar to inspect real-time earthquake magnitude, traffic delay, or webcam coordinates.
                 </p>
               </div>
             )}

@@ -718,7 +718,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         {
           id: 'new_welcome',
           role: 'assistant',
-          content: 'New intelligence session initialized. Ask about current cameras, hazards, flights, or assets.',
+          content: 'New intelligence session initialized. Ask about current cameras, hazards, traffic, or security perimeter.',
           created_at: new Date().toISOString(),
         }
       ]);
@@ -883,7 +883,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
           <input
             type="text"
             className="uai-search-input"
-            placeholder="Search locations, cameras, flights, ships..."
+            placeholder="Search locations, cameras, traffic, alerts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -2332,7 +2332,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               </div>
               <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <strong style={{ color: '#10b981' }}>Connected Providers:</strong>
-                <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '0.74rem' }}>Groq, Gemini, NASA NeoWs, FIRMS, USGS, Open-Meteo, OpenSky, Windy Webcams</p>
+                <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '0.74rem' }}>Groq, Gemini, NASA NeoWs, FIRMS, USGS, Open-Meteo, Municipal Traffic, Windy Webcams</p>
               </div>
               <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <strong style={{ color: '#818cf8' }}>Privacy Guarantee:</strong>

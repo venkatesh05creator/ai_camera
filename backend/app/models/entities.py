@@ -296,19 +296,19 @@ class Asset(Base):
 
 
 class GlobalFeedEvent(Base):
-    """Public domain global intelligence events (disasters, weather, flights, markets, space)."""
+    """Public domain global intelligence events (disasters, weather, traffic, markets, space)."""
     __tablename__ = "global_feed_events"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
-    domain: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # disaster, weather, transport, economics, space, infrastructure, news
-    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # earthquake, wildfire, storm, flight, market_shift, asteroid
+    domain: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # disaster, weather, traffic, economics, space, infrastructure, news
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # earthquake, wildfire, storm, traffic_delay, market_shift, asteroid
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     severity: Mapped[str] = mapped_column(String(32), default="info", nullable=False)  # info, low, medium, high, critical
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     location_name: Mapped[str] = mapped_column(String(200), default="", nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
-    source_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)  # USGS, Open-Meteo, OpenSky, Yahoo Finance, NASA
+    source_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)  # USGS, Open-Meteo, Municipal Traffic, Yahoo Finance, NASA
     source_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     raw_payload_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

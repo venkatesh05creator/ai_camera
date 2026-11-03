@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, camerasCount, activeA
     command_center: { title: 'Universal AI Command Center', subtitle: 'Integrated geospatial intelligence, live camera streams, disaster feeds, and cross-source AI assistant' },
     live: { title: 'Live Camera Operations', subtitle: 'Real-time multi-camera monitoring, motion and detection overlays' },
     hud: { title: 'J.A.R.V.I.S. Holographic 3D HUD', subtitle: 'Real-time quantum reactor core, two-way neural voice copilot, live market intelligence & executive automation' },
-    global_map: { title: 'Global Intelligence Radar', subtitle: 'Worldwide hazards (USGS), aviation transponders (OpenSky), open webcams & macroeconomic feeds' },
+    global_map: { title: 'Global Intelligence Radar', subtitle: 'Worldwide hazards (USGS), municipal traffic feeds, open webcams & environmental feeds' },
     assets: { title: 'Universal Asset & Object Tracking', subtitle: 'Continuous situational awareness and camera sighting history for vehicles, equipment, and goods' },
     ai: { title: 'AI Intelligence Copilot & OSINT', subtitle: 'Natural language surveillance analysis, online profile lookup, and situational intelligence' },
     people: { title: 'People & Consent Directory', subtitle: 'Authorized enrollment registry and voluntary profile verification' },

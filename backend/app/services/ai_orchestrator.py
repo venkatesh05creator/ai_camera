@@ -281,7 +281,7 @@ class IntentClassifier:
         if cls._is_asset_tracking(raw_q):
             return AIIntent.ASSET_TRACKING, 0.96, raw_q, None
 
-        # 10B. GLOBAL INTELLIGENCE (Earthquakes, Disasters, Aircraft, Space, Public Cams)
+        # 10B. GLOBAL INTELLIGENCE (Earthquakes, Disasters, Traffic, Space, Public Cams)
         if cls._is_global_intelligence(raw_q):
             return AIIntent.GLOBAL_INTELLIGENCE, 0.95, raw_q, None
 
@@ -1667,7 +1667,7 @@ class AIOrchestrator:
                 ctx.execution_status = "success"
 
         # ---------------------------------------------------------------------
-        # 10A1. GLOBAL INTELLIGENCE (Disasters, Flights, Space, Forex)
+        # 10A1. GLOBAL INTELLIGENCE (Disasters, Traffic, Space, Forex)
         # ---------------------------------------------------------------------
         elif intent == AIIntent.GLOBAL_INTELLIGENCE:
             intel = SafeToolRegistry.execute_global_intelligence(ctx)

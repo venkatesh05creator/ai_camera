@@ -9,7 +9,11 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
-from PIL import Image
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +42,31 @@ class ScreenUnderstandingService:
         if "," in image_base64:
             image_base64 = image_base64.split(",", 1)[1]
 
+        width, height, img_format = 1920, 1080, "PNG"
+        img = None
         try:
             image_bytes = base64.b64decode(image_base64)
-            img = Image.open(io.BytesIO(image_bytes))
-            width, height = img.size
+            if Image is not None:
+                try:
+                    img = Image.open(io.BytesIO(image_bytes))
+                    width, height = img.size
+                    img_format = getattr(img, "format", "PNG") or "PNG"
+                except Exception:
+                    img = None
+            if img is None and image_bytes.startswith(b"\x89PNG\r\n\x1a\n") and len(image_bytes) >= 24:
+                import struct
+                width, height = struct.unpack(">II", image_bytes[16:24])
+                img_format = "PNG"
+            elif img is None:
+                try:
+                    import cv2
+                    import numpy as np
+                    nparr = np.frombuffer(image_bytes, np.uint8)
+                    cv_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    if cv_img is not None:
+                        height, width = cv_img.shape[:2]
+                except Exception:
+                    pass
         except Exception as e:
             return {"error": f"Invalid screen image payload: {e}"}
 
@@ -52,12 +77,12 @@ class ScreenUnderstandingService:
         # In a full multimodal pipeline with Gemini or local VLM, the image is passed directly.
         # Here we perform structural analysis, OCR-based text inspection if available, and layout breakdown.
         detected_text = ""
-        try:
-            import pytesseract
-            detected_text = pytesseract.image_to_string(img)
-        except Exception:
-            # Fallback when tesseract binary is not installed in local environment
-            detected_text = ""
+        if img is not None:
+            try:
+                import pytesseract
+                detected_text = pytesseract.image_to_string(img)
+            except Exception:
+                detected_text = ""
 
         # Identify potential error indicators in OCR text or query
         error_indicators = []
@@ -88,7 +113,7 @@ class ScreenUnderstandingService:
                 "width": width,
                 "height": height,
                 "aspect_ratio": aspect_ratio,
-                "format": img.format or "PNG",
+                "format": getattr(img, "format", "PNG") if img is not None else img_format,
             },
             "user_query": user_query or "Inspect screen for issues",
             "detected_error_lines": error_indicators,
