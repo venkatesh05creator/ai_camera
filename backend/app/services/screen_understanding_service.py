@@ -80,8 +80,10 @@ class ScreenUnderstandingService:
         detected_text = ""
         if img is not None:
             try:
-                import pytesseract
-                detected_text = pytesseract.image_to_string(img)
+                pytesseract_mod = importlib.import_module("pytesseract")
+                image_to_string_fn = getattr(pytesseract_mod, "image_to_string", None)
+                if callable(image_to_string_fn):
+                    detected_text = image_to_string_fn(img)
             except Exception:
                 detected_text = ""
 
