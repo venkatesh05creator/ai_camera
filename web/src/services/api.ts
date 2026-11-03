@@ -142,6 +142,8 @@ export const api = {
     request<Alert>(`/alerts/${id}/acknowledge`, { method: 'PUT' }),
   resolveAlert: (id: string) =>
     request<Alert>(`/alerts/${id}/resolve`, { method: 'PUT' }),
+  reviewAlert: (id: string, status: string) =>
+    request<Alert>(`/alerts/${id}/resolve`, { method: 'PUT', body: JSON.stringify({ review_status: status }) }),
 
   // Reports & Analytics
   getReportSummary: () => request<ReportSummary>('/reports/summary'),
@@ -476,6 +478,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ category, minutes }),
     }),
+
+  getHUDState: () =>
+    request<any>('/hud/state'),
+
+  getUnifiedMapMarkers: (params?: Record<string, any>) =>
+    request<any>('/global/map-markers'),
 };
 
 

@@ -2627,9 +2627,17 @@ h1, h2, h3, h4, .font-display {
   width: 82px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  max-height: calc(100vh - 110px);
+}
+
+.uai-dock-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .uai-dock-btn {

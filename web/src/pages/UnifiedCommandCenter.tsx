@@ -23,6 +23,15 @@ import {
   Minimize2, 
   MapPin, 
   ExternalLink, 
+  Sliders,
+  Tag,
+  Package,
+  Lock,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Filter,
+  Download,
   Mic, 
   Send, 
   Volume2, 
@@ -44,11 +53,24 @@ import {
   RefreshCw,
   VideoOff,
   Copy,
-  CheckCheck
+  CheckCheck,
+  Monitor
 } from 'lucide-react';
 import { api, getAuthToken } from '../services/api';
 import { SentenceChunkTTSQueue, pickNaturalEnglishVoice } from '../utils/ttsQueue';
 import { Camera as CameraType, Alert } from '../types';
+import { AIAssistantModule } from '../modules/AIAssistantModule';
+import { LiveMonitoringModule } from '../modules/LiveMonitoringModule';
+import { CameraManagementModule } from '../modules/CameraManagementModule';
+import { PersonIntelligenceModule } from '../modules/PersonIntelligenceModule';
+import { ObjectTrackingModule } from '../modules/ObjectTrackingModule';
+import { SecurityEventsModule } from '../modules/SecurityEventsModule';
+import { LocationZonesModule } from '../modules/LocationZonesModule';
+import { ReportsAnalyticsModule } from '../modules/ReportsAnalyticsModule';
+import { ConversationsMemoryModule } from '../modules/ConversationsMemoryModule';
+import { AutomationControlModule } from '../modules/AutomationControlModule';
+import { SystemHealthModule } from '../modules/SystemHealthModule';
+import { SettingsModule } from '../modules/SettingsModule';
 
 declare global {
   interface Window {
@@ -96,6 +118,7 @@ interface EnrolledPerson {
   is_consented: boolean;
   templates_count: number;
   last_seen?: string;
+  notes?: string;
 }
 
 interface UnifiedCommandCenterProps {
@@ -873,7 +896,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
       {/* ─────────────────────────────────────────────────────────────────── */}
       <header className="uai-header-bar">
         {/* Brand Logo & Name */}
-        <div className="uai-brand-group">
+        <div className="uai-brand-group" onClick={() => setActiveSidebarNav('dashboard')} style={{ cursor: 'pointer' }} title="Go to Universal Command Center">
           <div className="uai-globe-orb">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -912,30 +935,30 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
             {utcTimeStr || 'Nov 2, 2026 21:50:18 UTC'}
           </div>
 
-          {/* Notification Center (Opens In-Page Events Timeline) */}
+          {/* Notification Center (Opens Security Events) */}
           <button 
             className="uai-icon-btn" 
-            title="Notification Center & Events Timeline"
-            onClick={() => setShowEventsModal(true)}
+            title="Notification Center & Security Events"
+            onClick={() => setActiveSidebarNav('events')}
           >
             <Bell size={17} />
             <span className="uai-badge-count">{activeAlertsCount || 3}</span>
           </button>
 
-          {/* Settings (Opens In-Page Settings) */}
+          {/* Settings (Opens Settings Studio) */}
           <button 
             className="uai-icon-btn" 
-            title="System Settings"
-            onClick={() => setShowSettingsModal(true)}
+            title="System Settings Studio"
+            onClick={() => setActiveSidebarNav('settings')}
           >
             <Settings size={17} />
           </button>
 
-          {/* User Profile Avatar (Opens In-Page People & Biometrics Registry) */}
+          {/* User Profile Avatar (Opens Person Intelligence) */}
           <button 
             className="uai-avatar-btn" 
-            title="Authorized People & Biometric Verification Directory"
-            onClick={() => setShowPeopleModal(true)}
+            title="Person Intelligence & Biometrics"
+            onClick={() => setActiveSidebarNav('people')}
           >
             <User size={18} color="#ffffff" />
           </button>
@@ -947,7 +970,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
       {/* ─────────────────────────────────────────────────────────────────── */}
       <section className="uai-kpi-grid">
         {/* 1. Active Cameras */}
-        <div className="uai-kpi-card" onClick={() => setShowCameraMatrixModal(true)} style={{ cursor: 'pointer' }} title="Click to open Live Camera Operations">
+        <div className="uai-kpi-card" onClick={() => setActiveSidebarNav('live_monitoring')} style={{ cursor: 'pointer' }} title="Click to open Live Camera Operations">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.4)' }}>
             <Video size={18} color="#3b82f6" />
           </div>
@@ -961,7 +984,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         </div>
 
         {/* 2. Security Monitoring */}
-        <div className="uai-kpi-card">
+        <div className="uai-kpi-card" onClick={() => setActiveSidebarNav('events')} style={{ cursor: 'pointer' }} title="Click to view Security Incidents">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
             <Shield size={18} color="#38bdf8" />
           </div>
@@ -1017,7 +1040,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         </div>
 
         {/* 6. Events Today */}
-        <div className="uai-kpi-card" onClick={() => setShowEventsModal(true)} style={{ cursor: 'pointer' }} title="Click to view events timeline">
+        <div className="uai-kpi-card" onClick={() => setActiveSidebarNav('events')} style={{ cursor: 'pointer' }} title="Click to view events timeline">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.4)' }}>
             <BarChart3 size={18} color="#818cf8" />
           </div>
@@ -1031,7 +1054,7 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         </div>
 
         {/* 7. Data Sources */}
-        <div className="uai-kpi-card">
+        <div className="uai-kpi-card" onClick={() => setActiveSidebarNav('health')} style={{ cursor: 'pointer' }} title="Click to view system health & providers">
           <div className="uai-kpi-icon-box" style={{ background: 'rgba(6, 182, 212, 0.2)', border: '1px solid rgba(6, 182, 212, 0.4)' }}>
             <Database size={18} color="#06b6d4" />
           </div>
@@ -1053,14 +1076,18 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
         {/* Left Dock Slim Navigation Sidebar */}
         <aside className="uai-dock-sidebar">
           {[
-            { id: 'dashboard', label: 'Dashboard', icon: Home },
-            { id: 'live_monitoring', label: 'Live Monitor', icon: Video },
-            { id: 'people', label: 'People Dir', icon: Users },
-            { id: 'layers', label: 'Map Layers', icon: Layers },
-            { id: 'tracking', label: 'Tracking', icon: Crosshair },
-            { id: 'events', label: 'Events & Alerts', icon: ShieldAlert },
-            { id: 'reports', label: 'Reports', icon: BarChart3 },
+            { id: 'dashboard', label: 'Command', icon: Home },
             { id: 'assistant', label: 'Jarvis AI', icon: Bot },
+            { id: 'live_monitoring', label: 'Live Wall', icon: Video },
+            { id: 'camera_management', label: 'Cameras', icon: Camera },
+            { id: 'people', label: 'Person Intel', icon: Users },
+            { id: 'tracking', label: 'Tracking', icon: Crosshair },
+            { id: 'events', label: 'Events', icon: ShieldAlert },
+            { id: 'zones', label: 'Zones', icon: MapPin },
+            { id: 'reports', label: 'Reports', icon: BarChart3 },
+            { id: 'conversations', label: 'Memories', icon: Database },
+            { id: 'automation', label: 'Control', icon: Monitor },
+            { id: 'health', label: 'Health', icon: Activity },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map((item) => {
             const IconComponent = item.icon;
@@ -1069,26 +1096,10 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
               <button
                 key={item.id}
                 className={`uai-dock-btn ${isActive ? 'active' : ''}`}
+                title={item.label}
                 onClick={() => {
                   setActiveSidebarNav(item.id);
-                  if (item.id === 'live_monitoring') {
-                    setShowCameraMatrixModal(true);
-                  } else if (item.id === 'people') {
-                    setShowPeopleModal(true);
-                  } else if (item.id === 'layers') {
-                    setShowLayerModal(true);
-                  } else if (item.id === 'tracking') {
-                    setShowAssetModal(true);
-                  } else if (item.id === 'events') {
-                    setShowEventsModal(true);
-                  } else if (item.id === 'reports') {
-                    setShowReportsModal(true);
-                  } else if (item.id === 'assistant') {
-                    const aiInputEl = document.getElementById('uai-ai-input');
-                    if (aiInputEl) aiInputEl.focus();
-                  } else if (item.id === 'settings') {
-                    setShowSettingsModal(true);
-                  } else if (item.id === 'dashboard') {
+                  if (item.id === 'dashboard') {
                     setActiveFilterPill('all');
                   }
                 }}
@@ -1102,9 +1113,152 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
 
         {/* Center Workspace Content Area */}
         <div className="uai-center-workspace">
-          
-          {/* Upper Section: Map (Left) + Right Stack (Camera + Alerts) */}
-          <section className="uai-upper-section">
+          {activeSidebarNav === 'assistant' ? (
+            <AIAssistantModule
+              chatMessages={chatMessages}
+              aiQuery={aiQuery}
+              setAiQuery={setAiQuery}
+              aiLoading={aiLoading}
+              ttsEnabled={ttsEnabled}
+              setTtsEnabled={setTtsEnabled}
+              isHandsFreeMode={isHandsFreeMode}
+              setIsHandsFreeMode={setIsHandsFreeMode}
+              onSend={handleAiAsk}
+              onVoiceInput={handleVoiceInput}
+              conversations={conversations}
+              activeConvId={activeConvId}
+              onSelectConversation={(id) => setActiveConvId(id)}
+              onNewConversation={() => {
+                const newId = 'conv_' + Date.now();
+                setConversations((prev) => [{ id: newId, title: 'New Conversation', updated_at: new Date().toISOString() }, ...prev]);
+                setActiveConvId(newId);
+                setChatMessages([]);
+              }}
+              copiedMsgId={copiedMsgId}
+              onCopyMessage={(text, id) => {
+                navigator.clipboard.writeText(text);
+                setCopiedMsgId(id);
+                setTimeout(() => setCopiedMsgId(null), 2000);
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'live_monitoring' ? (
+            <LiveMonitoringModule
+              cameras={cameras}
+              selectedCamera={selectedCamera}
+              onSelectCamera={(cam) => setSelectedCamera(cam)}
+              publicCameras={publicCameras}
+              selectedPublicCamera={selectedPublicCamera}
+              onSelectPublicCamera={(pub) => setSelectedPublicCamera(pub)}
+              isLocalWebcamActive={isLocalWebcamActive}
+              localVideoRef={localVideoRef}
+              localStreamRef={localStreamRef}
+              startLocalWebcam={startLocalWebcam}
+              webcamError={webcamError}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'camera_management' ? (
+            <CameraManagementModule
+              cameras={cameras}
+              selectedCamera={selectedCamera}
+              onSelectCamera={(cam) => setSelectedCamera(cam)}
+              onRegisterCamera={async (camData) => {
+                await api.registerCamera(camData as any);
+                fetchAllData();
+              }}
+              onDeleteCamera={async (camId) => {
+                await api.deleteCamera(camId);
+                fetchAllData();
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'people' ? (
+            <PersonIntelligenceModule
+              people={peopleList}
+              onEnrollPerson={async (name, role, notes, isConsented) => {
+                const newPerson: EnrolledPerson = {
+                  id: `p-${Date.now()}`,
+                  name,
+                  role,
+                  is_consented: isConsented !== false,
+                  templates_count: 1,
+                  last_seen: 'Just enrolled',
+                  notes,
+                };
+                setPeopleList((prev) => [newPerson, ...prev]);
+              }}
+              onDeletePerson={async (id) => {
+                setPeopleList((prev) => prev.filter((p) => p.id !== id));
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'tracking' ? (
+            <ObjectTrackingModule
+              assets={assets}
+              onAddCustomLabel={async (name, category, identifier) => {
+                const token = getAuthToken();
+                await fetch('/api/v1/assets', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ name, category, tracking_method: 'visual_feature', identifier: identifier || null, location_label: 'Custom Labeled' }),
+                });
+                fetchAllData();
+              }}
+              onDeleteAsset={async (id) => {
+                const token = getAuthToken();
+                await fetch(`/api/v1/assets/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                fetchAllData();
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'events' ? (
+            <SecurityEventsModule
+              alerts={initialAlerts as any}
+              onReviewEvent={async (id, status) => {
+                await api.reviewAlert(id, status);
+                fetchAllData();
+              }}
+              onAcknowledgeAlert={async (id) => {
+                await api.acknowledgeAlert(id);
+                fetchAllData();
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'zones' ? (
+            <LocationZonesModule
+              markers={markers}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'reports' ? (
+            <ReportsAnalyticsModule
+              cameras={cameras}
+              alerts={initialAlerts as any}
+              systemVitals={systemVitals}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'conversations' ? (
+            <ConversationsMemoryModule
+              conversations={conversations}
+              activeConvId={activeConvId}
+              onSelectConversation={(id) => setActiveConvId(id)}
+              onNewConversation={() => {
+                const newId = 'conv_' + Date.now();
+                setConversations((prev) => [{ id: newId, title: 'New Conversation', updated_at: new Date().toISOString() }, ...prev]);
+                setActiveConvId(newId);
+                setChatMessages([]);
+              }}
+              onBackToCommandCenter={() => setActiveSidebarNav('dashboard')}
+            />
+          ) : activeSidebarNav === 'automation' ? (
+            <AutomationControlModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
+          ) : activeSidebarNav === 'health' ? (
+            <SystemHealthModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
+          ) : activeSidebarNav === 'settings' ? (
+            <SettingsModule onBackToCommandCenter={() => setActiveSidebarNav('dashboard')} />
+          ) : (
+            <>
+              {/* Upper Section: Map (Left) + Right Stack (Camera + Alerts) */}
+              <section className="uai-upper-section">
             
             {/* 1. Global Interactive Map Card */}
             <div className="uai-map-container-card" style={{ height: isFullScreenMap ? '84vh' : 'auto' }}>
@@ -1994,9 +2148,11 @@ export const UnifiedCommandCenter: React.FC<UnifiedCommandCenterProps> = ({
             </div>
 
           </section>
+        </>
+      )}
 
-        </div>
-      </main>
+    </div>
+  </main>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* BOTTOM TELEMETRY FOOTER BAR (Verified Hardware Observability)        */}

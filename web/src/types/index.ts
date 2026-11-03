@@ -1,3 +1,14 @@
+export interface Asset {
+  id: string;
+  name: string;
+  category: string;
+  tracking_method: string;
+  identifier: string | null;
+  status: string;
+  last_seen_at: string | null;
+  location_label: string;
+}
+
 export interface User {
   id: string;
   email: string;
