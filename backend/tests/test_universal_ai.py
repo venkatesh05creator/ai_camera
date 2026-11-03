@@ -471,19 +471,11 @@ def test_screen_understanding_service_consent_and_analysis():
     import base64
     from backend.app.services.screen_understanding_service import ScreenUnderstandingService
 
-    try:
-        from PIL import Image
-        import io
-        img = Image.new("RGB", (1920, 1080), color=(15, 23, 42))
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
-    except ImportError:
-        import cv2
-        import numpy as np
-        arr = np.zeros((1080, 1920, 3), dtype=np.uint8)
-        _, buf = cv2.imencode(".png", arr)
-        b64_str = base64.b64encode(buf).decode("utf-8")
+    import cv2
+    import numpy as np
+    arr = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    _, buf = cv2.imencode(".png", arr)
+    b64_str = base64.b64encode(buf.tobytes() if hasattr(buf, "tobytes") else bytes(buf)).decode("utf-8")
 
     # 1. Consent required
     no_consent = ScreenUnderstandingService.analyze_screen_frame(b64_str, explicit_consent=False)

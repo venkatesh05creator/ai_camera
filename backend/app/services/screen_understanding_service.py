@@ -10,8 +10,9 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
+import importlib
 try:
-    from PIL import Image
+    Image = importlib.import_module("PIL.Image")
 except ImportError:
     Image = None
 
