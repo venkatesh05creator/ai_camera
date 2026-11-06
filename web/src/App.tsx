@@ -4,6 +4,8 @@ import { LoginForm } from './pages/Login';
 import { Home } from './pages/Home';
 import { Chat } from './pages/Chat';
 import { Memory } from './pages/Memory';
+import { Cameras } from './pages/Cameras';
+import { CameraFeed } from './pages/CameraFeed';
 
 function PanicGate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
@@ -23,14 +25,14 @@ function PanicGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-type Page = 'home' | 'chat' | 'memory';
+type Page = 'home' | 'chat' | 'memory' | 'cameras' | 'feed';
 
 function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   const { me, logout } = useAuth();
   return (
     <nav className="sticky top-0 z-10 border-b backdrop-blur" style={{ borderColor: 'var(--panel)', background: 'var(--surface)' }} aria-label="Primary">
       <div className="mx-auto flex w-full max-w-2xl items-center gap-1 px-4 py-2">
-        {(['home', 'chat', 'memory'] as Page[]).map((p) => (
+        {(['home', 'chat', 'memory', 'cameras', 'feed'] as Page[]).map((p) => (
           <button
             key={p}
             onClick={() => setPage(p)}
@@ -42,7 +44,7 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
                 : { color: 'var(--muted)' }
             }
           >
-            {p}
+            {p === 'feed' ? 'Phone' : p}
           </button>
         ))}
         <span className="ml-auto flex items-center gap-3">
@@ -89,6 +91,8 @@ function Shell() {
       {page === 'home' && <Home />}
       {page === 'chat' && <Chat />}
       {page === 'memory' && <Memory />}
+      {page === 'cameras' && <Cameras />}
+      {page === 'feed' && <CameraFeed />}
     </PanicGate>
   );
 }

@@ -80,3 +80,28 @@ class MemoryOut(StrictModel):
     text: str
     created_at: str
     updated_at: str
+
+
+# --- Phase 4: cameras --------------------------------------------------------
+
+class CameraIn(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: str = Field(pattern="^(webcam|phone|rtsp)$")
+    source: str = Field(min_length=1, max_length=500)
+
+
+class CameraUpdateIn(StrictModel):
+    enabled: bool | None = None
+    name: str | None = Field(default=None, max_length=120)
+    retention_days: int | None = Field(default=None, ge=1, le=90)
+
+
+class CameraOut(StrictModel):
+    id: int
+    name: str
+    kind: str
+    source: str
+    enabled: bool
+    retention_days: int
+    running: bool = False
+    health: dict = {}

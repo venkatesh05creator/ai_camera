@@ -205,4 +205,65 @@ export const api = {
   memoryDelete: (id: number) =>
     request<{ ok: boolean }>(`/api/memory/${id}`, { method: 'DELETE' }),
   memoryExportUrl: () => '/api/memory/export',
+  // --- Phase 4: cameras -------------------------------------------------------
+  cameras: () => request<Array<{
+    id: number; name: string; kind: string; source: string;
+    enabled: boolean; retention_days: number; running: boolean;
+    health: { status: string; error?: string | null; fps?: number | null; frames?: number };
+    token?: string;
+  }>>('/api/cameras'),
+  cameraCreate: (name: string, kind: string, source: string) =>
+    request<{ id: number; name: string; kind: string; token: string }>('/api/cameras', {
+      method: 'POST',
+      body: JSON.stringify({ name, kind, source }),
+    }),
+  cameraStart: (id: number) => request<{ ok: boolean }>(`/api/cameras/${id}/start`, { method: 'POST', body: '{}' }),
+  cameraStop: (id: number) => request<{ ok: boolean }>(`/api/cameras/${id}/stop`, { method: 'POST', body: '{}' }),
+  cameraEvents: (id: number) =>
+    request<{ items: Array<{ id: number; ts: string; kind: string; person_count: number; motion_score: number; snapshot_status: string; has_snapshot: boolean }>; count: number }>(
+      `/api/cameras/${id}/events`),
+  cameraSnapshot: async (cameraId: number, eventId: number): Promise<Blob> => {
+    const res = await fetch(`/api/cameras/${cameraId}/events/${eventId}/snapshot`, { credentials: 'same-origin' });
+    if (!res.ok) throw new ApiError(res.status, 'snapshot_failed', 'Snapshot unavailable');
+    return res.blob();
+  },
+  purgeCameras: () => request<{ removed: { events: number; notifications: number; nonces: number } }>('/api/cameras/purge', { method: 'POST', body: '{}' }),
+  notifications: () =>
+    request<{ items: Array<{ id: number; ts: string; kind: string; title: string; body: string; is_read: boolean }>; unread: number }>('/api/notifications'),
+  notificationRead: (id: number) =>
+    request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'POST', body: '{}' }),
+  ingestFrame: async (
+    cameraId: number, rawToken: string, frame: Blob
+  ): Promise<{ motion_score: number; persons: number }> => {
+    const body = await frame.arrayBuffer();
+    const ts = new Date().toISOString();
+    const nonce = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+    const hash = await crypto.subtle.digest('SHA-256', body);
+    const hashHex = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const key = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(rawToken),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign(
+      'HMAC', key, new TextEncoder().encode(`${cameraId}.${ts}.${nonce}.${hashHex}`));
+    const sigHex = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const res = await fetch(`/api/cameras/${cameraId}/frame`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'X-Camera-Token': rawToken,
+        'X-Timestamp': ts,
+        'X-Nonce': nonce,
+        'X-Signature': sigHex,
+      },
+      body,
+    });
+    const data = (await res.json().catch(() => null)) as {
+      motion_score?: number; persons?: number; error?: { code?: string; message?: string }
+    } | null;
+    if (!res.ok) {
+      throw new ApiError(res.status, data?.error?.code ?? 'ingest_failed',
+        data?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return { motion_score: data?.motion_score ?? 0, persons: data?.persons ?? 0 };
+  },
 };

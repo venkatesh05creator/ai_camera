@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import re
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
-from ..services import audit_service, memory_service
+from ..services import audit_service, camera_service, memory_service
 
 _BADGE_RE = re.compile(r"\[(E\d+)\]")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
@@ -138,4 +139,19 @@ async def build_pack(session: AsyncSession, settings: Settings) -> EvidencePack:
         items.append(EvidenceItem(
             f"E{len(items) + 1}", source=f"memory #{item.id}",
             title=item.kind, text=public["text"]))
+    # camera verdicts (honest: counts/offline only, never identities)
+    from ..models.cameras import Camera, CameraHealth
+
+    cameras = (await session.execute(
+        select(Camera).order_by(Camera.id.asc()))).scalars().all()
+    for camera in cameras:
+        health = await session.get(CameraHealth, camera.id)
+        status = camera_service.effective_status(health)
+        text = (
+            f"Camera '{camera.name}' ({camera.kind}) is {status['status']}")
+        if status.get("error"):
+            text += f" — error: {status['error']}"
+        items.append(EvidenceItem(
+            f"E{len(items) + 1}", source=f"camera #{camera.id}",
+            title=camera.name, text=text))
     return EvidencePack(items[:12])

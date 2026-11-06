@@ -12,3 +12,6 @@ alembic==1.20.1
 argon2-cffi==25.1.0
 cryptography==50.0.2
 PyOTP==2.10.0
+httpx==0.28.1
+numpy==2.5.4
+opencv-python-headless==4.10.0.84  # CPU vision: VideoCapture, motion, HOG person, Haar blur

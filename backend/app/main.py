@@ -61,6 +61,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.get_session_factory()
         from .models.base import create_all
         await create_all()
+        from .services.camera_service import purge_expired
+        factory = db.get_session_factory()
+        async with factory() as session:  # startup retention sweep (honest counts)
+            removed = await purge_expired(session)
+            if any(removed.values()):
+                logging.getLogger(__name__).info("report: retention purge %s", removed)
+            await session.commit()
         yield
         await db.dispose_engine()
 
@@ -97,10 +104,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # --- routers --------------------------------------------------------------
     from .routers import ai as ai_router
     from .routers import auth as auth_router
+    from .routers import cameras as cameras_router
     from .routers import system as system_router
     app.include_router(auth_router.router)
     app.include_router(ai_router.router)
     app.include_router(ai_router.memory_router)
+    app.include_router(cameras_router.router)
+    app.include_router(cameras_router.notifications_router)
     app.include_router(system_router.router)
 
     # --- health: REAL metrics only ------------------------------------------
@@ -118,6 +128,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # --- error handling -------------------------------------------------------
     from .ai.providers import ProviderError
+    from .services.camera_service import CameraError
     from .services.memory_service import MemoryError
 
     @app.exception_handler(AuthError)
@@ -128,6 +139,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(MemoryError)
     async def memory_error(request: Request, exc: MemoryError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={"error": {"code": exc.code, "message": exc.message}})
+
+    @app.exception_handler(CameraError)
+    async def camera_error(request: Request, exc: CameraError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status,
             content={"error": {"code": exc.code, "message": exc.message}})
