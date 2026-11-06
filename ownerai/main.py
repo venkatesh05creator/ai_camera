@@ -38,6 +38,7 @@ from .routers import (
     digest,
     events,
     evidence,
+    guest,
     health,
     hud,
     identities,
@@ -151,6 +152,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(evidence.router)
     app.include_router(alert_rules.router)
     app.include_router(digest.router)
+    app.include_router(guest.router)
     app.include_router(zones.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
