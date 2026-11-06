@@ -36,6 +36,7 @@ from .routers import (
     contact,
     devices,
     digest,
+    doctor,
     events,
     evidence,
     guest,
@@ -43,11 +44,13 @@ from .routers import (
     hud,
     identities,
     legacy,
+    mcp,
     pages,
     replay,
     search,
     vision,
     voice,
+    wake_word,
     zones,
 )
 from .sessions import session_from_token
@@ -152,8 +155,11 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(evidence.router)
     app.include_router(alert_rules.router)
     app.include_router(digest.router)
+    app.include_router(doctor.router)
     app.include_router(guest.router)
+    app.include_router(mcp.router)
     app.include_router(zones.router)
+    app.include_router(wake_word.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
     app.include_router(voice.router)
