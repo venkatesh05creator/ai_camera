@@ -1,0 +1,114 @@
+"""Aegis AI application factory (Phase 2: secure foundation).
+
+Boot refuse-safe in production, loopback bind by default, strict security
+headers, request body limit, structured logging, and a health endpoint that
+reports only real measured values.
+"""
+
+from __future__ import annotations
+
+import logging
+import platform
+import sys
+import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
+
+from . import db
+from .config import PROJECT_ROOT, Settings, get_settings
+from .logging_setup import setup_logging
+from .middleware import (
+    HTTPSRedirectMiddleware,
+    RequestBodyLimitMiddleware,
+    RequestContextMiddleware,
+    SecurityHeadersMiddleware,
+)
+
+STARTED_AT = time.time()
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    setup_logging(settings.log_level,
+                  json_logs=settings.json_logs,
+                  log_dir=PROJECT_ROOT / "var" / "logs")
+
+    if settings.app_env == "production":
+        problems = settings.production_problems()
+        if problems:
+            for problem in problems:
+                print(f"CONFIG PROBLEM: {problem}", file=sys.stderr)
+            raise SystemExit("refusing to start in production with configuration problems")
+    elif not settings.secret_key.get_secret_value():
+        logging.getLogger(__name__).warning(
+            "report: no OWNERAI_SECRET_KEY set - dev fallback used "
+            "(production would refuse to start)")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        db.get_engine(settings)
+        db.get_session_factory()
+        from .models.base import create_all
+        await create_all()
+        yield
+        await db.dispose_engine()
+
+    app = FastAPI(
+        title=settings.app_name,
+        lifespan=lifespan,
+        docs_url=None if settings.app_env == "production" else "/docs",
+        redoc_url=None,
+        openapi_url=None if settings.app_env == "production" else "/openapi.json",
+    )
+    app.state.settings = settings
+    app.state.panic = {"active": False, "until": None, "reason": None}
+
+    # --- middleware (outermost first) --------------------------------------
+    app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_request_body_bytes)
+    app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware, settings=settings)
+    app.add_middleware(HTTPSRedirectMiddleware, enabled=settings.https_only)
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["X-CSRF-Token", "Content-Type", "Authorization"],
+        )
+
+    # --- health: REAL metrics only ------------------------------------------
+    @app.get("/healthz", include_in_schema=False)
+    async def healthz() -> JSONResponse:
+        db_health = await db.check_database()
+        return JSONResponse({
+            "status": "ok" if db_health.get("reachable") else "degraded",
+            "app_env": settings.app_env,
+            "uptime_seconds": round(time.time() - STARTED_AT, 2),
+            "python": platform.python_version(),
+            "panic_active": app.state.panic["active"],
+            "db": db_health,
+        })
+
+    # --- panic switch endpoint secured in commit 3 (owner-scoped); the state
+    # object lives on app.state so middleware can consult it globally. --------
+
+    # --- error handling -------------------------------------------------------
+    @app.exception_handler(Exception)
+    async def unhandled(request: Request, exc: Exception) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", "-")
+        import logging
+        logging.getLogger(__name__).exception(
+            "unhandled error rid=%s", request_id)
+        return JSONResponse(
+            status_code=500,
+            content={"error": {"code": "internal_error",
+                               "message": "Something went wrong. The error has been logged.",
+                               "request_id": request_id}})
+
+    return app

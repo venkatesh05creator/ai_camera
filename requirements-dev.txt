@@ -1,0 +1,8 @@
+# Dev / CI tooling (server deps come via requirements-server.txt)
+-r requirements-server.txt
+
+ruff==0.17.4
+mypy==2.4.1
+bandit[toml]==1.9.4
+pip-audit==2.10.1
+# secret scanning in CI uses the gitleaks GitHub Action (Go binary, not pip)

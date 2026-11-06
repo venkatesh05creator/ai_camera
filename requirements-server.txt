@@ -1,0 +1,14 @@
+# Aegis AI - backend server requirements (Python 3.11+, built/tested on 3.13)
+# Exact pins from the build environment; regenerate with: pip list --format=freeze
+fastapi==0.162.0
+starlette==1.10.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
+email-validator==2.3.0
+sqlalchemy[asyncio]==2.1.8
+aiosqlite==0.22.1
+alembic==1.20.1
+argon2-cffi==25.1.0
+cryptography==50.0.2
+PyOTP==2.10.0
