@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import patch
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,11 +11,16 @@ from sqlalchemy.orm import sessionmaker
 from backend.app.core.database import Base
 from backend.app.models.entities import (
     Asset,
+    Camera,
     GlobalFeedEvent,
     MonitoringRule,
     SavedLocation,
     User,
-    Camera,
+)
+from backend.app.services.ai_orchestrator import (
+    AIIntent,
+    AIOrchestrator,
+    IntentClassifier,
 )
 from backend.app.services.asset_tracking_service import (
     correlate_event_with_assets,
@@ -28,18 +33,11 @@ from backend.app.services.asset_tracking_service import (
 )
 from backend.app.services.global_intel_service import (
     get_earthquake_feed,
-    get_currency_forex_rates,
     get_live_traffic_intelligence,
     get_near_earth_objects,
     get_public_cameras,
     get_unified_map_markers,
     get_weather_intelligence,
-)
-from backend.app.services.ai_orchestrator import (
-    AIIntent,
-    AIOrchestrator,
-    AIRequestContext,
-    IntentClassifier,
 )
 
 
@@ -195,7 +193,7 @@ def test_asset_correlation_with_camera_events(in_memory_db):
         identifier="DL-08-CC-1234",
         location_label="Driveway",
     )
-    laptop = register_asset(
+    register_asset(
         db=in_memory_db,
         owner_user_id=user_id,
         name="MacBook Pro",
@@ -469,10 +467,11 @@ def test_computer_control_service_and_approval_gate():
 def test_screen_understanding_service_consent_and_analysis():
     """Verify ScreenUnderstandingService requires consent and analyzes screen geometry."""
     import base64
-    from backend.app.services.screen_understanding_service import ScreenUnderstandingService
 
     import cv2
     import numpy as np
+
+    from backend.app.services.screen_understanding_service import ScreenUnderstandingService
     arr = np.zeros((1080, 1920, 3), dtype=np.uint8)
     _, buf = cv2.imencode(".png", arr)
     b64_str = base64.b64encode(buf.tobytes() if hasattr(buf, "tobytes") else bytes(buf)).decode("utf-8")
