@@ -31,10 +31,56 @@ def test_oversized_body_rejected_413(client):
 
 
 def test_unknown_route_returns_json_404(client):
-    resp = client.get("/definitely-not-a-route")
+    # inside the API namespace unknown paths are JSON 404 (page paths are SPA-served)
+    resp = client.get("/api/definitely-not-a-route")
     assert resp.status_code == 404
-    assert "text/json" in resp.headers["content-type"] or \
-        resp.headers["content-type"].startswith("application/json")
+    assert resp.headers["content-type"].startswith("application/json")
+    assert resp.json()["error"]["code"] == "not_found"
+
+
+def test_spa_fallback_serves_index_and_assets(tmp_path, monkeypatch):
+    """With a built web/dist, page routes serve the PWA, API stays JSON."""
+    import secrets
+    from pathlib import Path
+
+    from starlette.testclient import TestClient
+
+    from backend.app.db import reset_engine
+    from backend.app.main import create_app
+
+    dist = tmp_path / "dist"
+    assets = dist / "assets"
+    assets.mkdir(parents=True)
+    (dist / "index.html").write_text("<!doctype html><title>Aegis</title>", encoding="utf-8")
+    (assets / "app.js").write_text("console.log('spa');", encoding="utf-8")
+    monkeypatch.setenv("AEGIS_WEB_DIST", str(dist))
+
+    reset_engine()
+    settings = Settings(
+        app_env="test",
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'aegis.db').as_posix()}",
+        secret_key=secrets.token_hex(32),
+        json_logs=False,
+        log_level="WARNING",
+    )
+    app = create_app(settings)
+    with TestClient(app) as c:
+        root = c.get("/")
+        assert root.status_code == 200
+        assert "Aegis" in root.text
+        deep = c.get("/some/client/route")
+        assert deep.status_code == 200
+        assert "Aegis" in deep.text  # SPA fallback, not a 404
+        asset = c.get("/assets/app.js")
+        assert asset.status_code == 200
+        assert "console.log" in asset.text
+        api_miss = c.get("/api/nope")
+        assert api_miss.status_code == 404
+        assert api_miss.json()["error"]["code"] == "not_found"
+        health = c.get("/healthz")
+        assert health.status_code == 200  # explicit route still wins
+    reset_engine()
+    assert (Path(dist) / "index.html").exists()  # never served from outside dist
 
 
 def test_https_only_redirects(tmp_path):

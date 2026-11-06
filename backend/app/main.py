@@ -13,6 +13,7 @@ import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -129,5 +130,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             content={"error": {"code": "internal_error",
                                "message": "Something went wrong. The error has been logged.",
                                "request_id": request_id}})
+
+    # --- built PWA from the same origin (skips silently when absent) ----------
+    import os as _os
+
+    from fastapi.responses import FileResponse
+
+    web_dist = Path(_os.environ.get("AEGIS_WEB_DIST",
+                                     PROJECT_ROOT / "web" / "dist"))
+    if web_dist.is_dir():
+        web_root = web_dist.resolve()
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def spa_fallback(full_path: str) -> FileResponse | JSONResponse:  # noqa: B008
+            if full_path.startswith(("api/", "api")) or full_path == "healthz":
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": {"code": "not_found", "message": "Not found"}})
+            candidate = (web_root / full_path).resolve() if full_path else web_root
+            if (full_path and candidate.is_file()
+                    and candidate.is_relative_to(web_root)):
+                return FileResponse(candidate, headers={"cache-control": "no-cache"})
+            return FileResponse(web_root / "index.html",
+                                headers={"cache-control": "no-cache"})
 
     return app

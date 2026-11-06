@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install (pinned, via uv)
+        run: |
+          pip install uv
+          uv venv .venv
+          uv pip install --python .venv/bin/python -r requirements-dev.txt
+      - name: Lint
+        run: .venv/bin/python -m ruff check backend tests
+      - name: Type-check
+        run: .venv/bin/python -m mypy backend
+      - name: Static security scan
+        run: .venv/bin/python -m bandit -c pyproject.toml -r backend
+      - name: Dependency audit
+        run: .venv/bin/python -m pip_audit -r requirements-server.txt
+      - name: Tests (includes client-bundle secret scan when node exists)
+        run: .venv/bin/python -m pytest tests/
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Type-check + build
+        run: npm run build
+      - name: Audit (fail on high+)
+        run: npm audit --audit-level=high

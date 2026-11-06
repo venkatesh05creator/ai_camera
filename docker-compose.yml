@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aegis-ai-backend:2.0
+    # loopback-only on the host; a TLS-terminating reverse proxy goes in front
+    # for any off-box access. Do NOT publish 0.0.0.0 unencrypted.
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      OWNERAI_APP_ENV: production
+      OWNERAI_DATABASE_URL: "sqlite+aiosqlite:////srv/aegis/var/aegis.db"
+      AEGIS_WEB_DIST: "/srv/aegis/web/dist"
+    volumes:
+      - aegis-var:/srv/aegis/var
+    restart: unless-stopped
+
+volumes:
+  aegis-var:
