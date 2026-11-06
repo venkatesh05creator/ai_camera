@@ -959,3 +959,113 @@ th {
     right: 0.5rem;
   }
 }
+
+/* ==========================================================================
+   Phase UX - loading, empty & error states
+   - Skeleton loaders for lists/cards/timeline while data fetches
+   - Small spinners only for short actions
+   - Clear empty and error states with retry buttons
+   - Respect prefers-reduced-motion
+   - Live tiles labelled with last-updated time (never stale-as-live)
+   ========================================================================== */
+
+/* Skeleton loader */
+.con-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  color: transparent;
+}
+.con-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: con-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes con-shimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .con-skeleton::after { animation: none; }
+  .con-spinner { animation: none; border: 2px solid var(--border); border-top-color: var(--accent); }
+}
+.con-skeleton.text { height: 1rem; border-radius: 0.35rem; width: 90%; margin: 0.5rem 0; }
+.con-skeleton.line { height: 0.9rem; border-radius: 0.3rem; width: 100%; }
+.con-skeleton.avatar { height: 2.5rem; width: 2.5rem; border-radius: 50%; }
+.con-skeleton.tile { height: 3rem; border-radius: var(--radius-sm); }
+.con-skeleton.list-item { height: 4.5rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; padding: 0.75rem; background: var(--bg-elevated); border: 1px solid var(--border); }
+.con-skeleton.list-item .con-skeleton.text:nth-child(2) { width: 60%; }
+
+/* Spinner (short actions only) */
+.con-spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: con-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+@keyframes con-spin { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.empty-state, .con-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+.empty-state strong, .con-empty strong { display: block; color: var(--text); margin-bottom: 0.25rem; font-size: 1.05rem; }
+
+/* Error state + retry */
+.con-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  color: var(--danger);
+  text-align: center;
+  border: 1px solid var(--danger-bg);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+.con-error-state .con-btn { margin-top: 0.75rem; }
+
+/* Last-updated label on live tiles (never stale-as-live) */
+.con-tile-updated {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  font-family: var(--font);
+}
+.con-tile-updated.stale { color: var(--warning); }
+.con-tile-updated.offline { color: var(--danger); }
+
+/* List items get a subtle freshness cue */
+.con-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.con-list-item:last-child { border-bottom: none; }
+.con-list-item .meta { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Reduced motion: respect user preference globally */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .con-spinner { animation: none; border: 2px solid var(--border); border-top-color: var(--accent); }
+}

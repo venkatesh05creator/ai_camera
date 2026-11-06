@@ -173,9 +173,17 @@
             <div class="con-card-body">
               <p class="loading" data-panel-status="identities">Loading identities…</p>
               <ul class="list-reset" data-identities-list></ul>
+              <ul class="list-reset" data-identities-skeleton hidden>
+                <li class="con-skeleton list-item"><div class="con-skeleton avatar"></div><div class="con-skeleton text" style="width:60%"></div><div class="con-skeleton text" style="width:40%"></div></li>
+                <li class="con-skeleton list-item"><div class="con-skeleton avatar"></div><div class="con-skeleton text" style="width:50%"></div><div class="con-skeleton text" style="width:35%"></div></li>
+              </ul>
               <div class="empty-state" data-identities-empty hidden>
                 <strong>No identity enrolled</strong>
                 Enrol your own face so the assistant can verify you - and only you.
+              </div>
+              <div class="con-error-state" data-identities-error hidden>
+                <strong>Unable to load identities</strong>
+                <button class="con-btn" type="button" data-identities-retry>Retry</button>
               </div>
 
               <h3>Enrol an identity</h3>
@@ -214,9 +222,17 @@
             <div class="con-card-body">
               <p class="loading" data-panel-status="events">Loading events…</p>
               <ul class="list-reset" data-events-list></ul>
+              <ul class="list-reset" data-events-skeleton hidden>
+                <li class="con-skeleton list-item"><div class="con-skeleton text"></div><div class="con-skeleton text" style="width:40%"></div><div class="con-skeleton text" style="width:25%"></div></li>
+                <li class="con-skeleton list-item"><div class="con-skeleton text"></div><div class="con-skeleton text" style="width:50%"></div><div class="con-skeleton text" style="width:30%"></div></li>
+              </ul>
               <div class="empty-state" data-events-empty hidden>
                 <strong>No events yet</strong>
                 Events pushed by your cameras will appear here.
+              </div>
+              <div class="con-error-state" data-events-error hidden>
+                <strong>Unable to load events</strong>
+                <button class="con-btn" type="button" data-events-retry>Retry</button>
               </div>
 
               <h3>Record an event manually</h3>
@@ -267,9 +283,17 @@
                   <tbody data-devices-body></tbody>
                 </table>
               </div>
+              <ul class="list-reset" data-devices-skeleton hidden>
+                <li class="con-skeleton list-item"><div class="con-skeleton text"></div><div class="con-skeleton text" style="width:35%"></div><div class="con-skeleton text" style="width:20%"></div></li>
+                <li class="con-skeleton list-item"><div class="con-skeleton text"></div><div class="con-skeleton text" style="width:40%"></div><div class="con-skeleton text" style="width:25%"></div></li>
+              </ul>
               <div class="empty-state" data-devices-empty hidden>
                 <strong>No camera registered yet</strong>
                 Add your first webcam, phone or IP camera below.
+              </div>
+              <div class="con-error-state" data-devices-error hidden>
+                <strong>Unable to load cameras</strong>
+                <button class="con-btn" type="button" data-devices-retry>Retry</button>
               </div>
 
               <h3>Register a camera</h3>
@@ -353,10 +377,10 @@
               <div class="con-card-head"><h2>Overview</h2></div>
               <div class="con-card-body">
                 <div class="con-telemetry">
-                  <div class="con-tile"><div class="k">Cameras</div><div class="v neutral" data-count="devices">{{ counts.devices }}</div></div>
-                  <div class="con-tile"><div class="k">Events</div><div class="v neutral" data-count="events">{{ counts.events }}</div></div>
-                  <div class="con-tile"><div class="k">Identities</div><div class="v neutral" data-count="identities">{{ counts.identities }}</div></div>
-                  <div class="con-tile"><div class="k">Conversations</div><div class="v neutral" data-count="conversations">{{ counts.conversations }}</div></div>
+                  <div class="con-tile"><div class="k">Cameras</div><div class="v neutral" data-count="devices">{{ counts.devices }}</div><div class="con-tile-updated" id="tile-updated-devices">--</div></div>
+                  <div class="con-tile"><div class="k">Events</div><div class="v neutral" data-count="events">{{ counts.events }}</div><div class="con-tile-updated" id="tile-updated-events">--</div></div>
+                  <div class="con-tile"><div class="k">Identities</div><div class="v neutral" data-count="identities">{{ counts.identities }}</div><div class="con-tile-updated" id="tile-updated-identities">--</div></div>
+                  <div class="con-tile"><div class="k">Conversations</div><div class="v neutral" data-count="conversations">{{ counts.conversations }}</div><div class="con-tile-updated" id="tile-updated-conversations">--</div></div>
                 </div>
                 <h3>Quick search</h3>
                 <form class="stack" data-search-form action="/dashboard" method="get" role="search">
@@ -385,18 +409,22 @@
               <div class="con-tile">
                 <div class="k">Frame rate</div>
                 <div class="v" data-telemetry="fps">--.- FPS</div>
+                <div class="con-tile-updated" id="tile-updated-fps">--</div>
               </div>
               <div class="con-tile">
                 <div class="k">People tracked</div>
                 <div class="v neutral" data-telemetry="people">0 People</div>
+                <div class="con-tile-updated" id="tile-updated-people">--</div>
               </div>
               <div class="con-tile">
                 <div class="k">AI confidence</div>
                 <div class="v" data-telemetry="confidence">--.-%</div>
+                <div class="con-tile-updated" id="tile-updated-confidence">--</div>
               </div>
               <div class="con-tile">
                 <div class="k">Attention</div>
                 <div class="v neutral" data-telemetry="attention">Not measured</div>
+                <div class="con-tile-updated" id="tile-updated-attention">--</div>
               </div>
             </div>
             <div class="con-feature">
