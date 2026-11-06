@@ -248,13 +248,40 @@ These are real and are **not** fixed by this document:
 10. **No pentest has been performed by a third party.**  The automated tests
     and scanners in this repository are a baseline, not a certificate.
 
-## 11. Reporting a vulnerability
+## 11. Innovation features and feature flags
+
+The following Phase 3 / Phase 3B innovation capabilities exist in the codebase
+but are **disabled by default** (opt-in).  Each ships behind a feature flag
+read from ``OWNERAI_FEATURE_<NAME>`` (set to ``1``/``true`` to enable).  None
+of them alter the core owner-only/consent/grounding security model:
+
+| Flag | Feature | Security notes |
+|------|---------|----------------|
+| ``OWNERAI_FEATURE_CAMERA_HEALTH`` | Camera tamper & health detection (blur, low light, frozen stream, lens cover) | Observability only; never identifies anyone. Metadata-only probes, raw frames never stored. |
+| ``OWNERAI_FEATURE_LEARNED_BASELINE`` | Learned "normal" per-camera/time-of-day activity baseline with deviation alerts | Built solely from stored event metadata. Deviations are statistical, not identity or intent inferences. |
+| ``OWNERAI_FEATURE_ALERT_RULES`` | Natural-language alert rules (parsed, owner-confirmed before activation) | Rules are evaluated server-side against stored events. A rule never activates until the owner explicitly confirms it. |
+| ``OWNERAI_FEATURE_EVIDENCE_PANEL`` | Every JARVIS answer links to snapshot/event IDs, detector output, confidence | Evidence references stored CameraEvent metadata only; never raw frames or stranger identities. |
+| ``OWNERAI_FEATURE_PRIVACY_ZONES`` | Owner-drawn privacy zones never analysed/stored; non-enrolled faces blurred in clips | Zones define regions the detector ignores. Blur is applied to non-enrolled faces in saved output. |
+| ``OWNERAI_FEATURE_DIGEST`` | Daily/weekly narrative digest built only from stored events | Narrative is derived from event metadata; no raw media, no stranger identification. |
+| ``OWNERAI_FEATURE_GUEST_ACCESS`` | Time-boxed guest enrolment that expires automatically | Guest grants carry an expiry; verification against an expired grant always returns "not matched". |
+| ``OWNERAI_FEATURE_REPLAY_LOG`` | Per-turn replay/audit log (question, intent, tools, evidence, answer) | Logs are owner-scoped and append-only; used for traceability, not for profiling strangers. |
+| ``OWNERAI_FEATURE_WAKE_WORD`` | Local wake word + STT/TTS integration (server-side session tracking) | Wake-word detection happens client-side; the server never records or stores audio. |
+| ``OWNERAI_FEATURE_DOCTOR`` | Startup health probes + benchmark commands (camera, model, DB, disk) | Honest ok/soft/loud/critical severity; never fakes a healthy result. |
+| ``OWNERAI_FEATURE_MCP_RUNTIME`` | Pluggable Model Context Protocol tool runtime | Tools route through the same SafeToolRegistry confirmation rules; mutating tools require explicit owner confirmation. |
+| ``OWNERAI_FEATURE_OFFLINE_FIRST`` | Local vision + offline AI provider (works without internet) | The offline provider sends no data anywhere. Cloud providers require an explicit server-side API key. |
+
+All innovation features respect the non-negotiable principles: only enrolled
+people are ever identified, strangers stay anonymous, JARVIS answers are
+grounded in detector output and frame freshness, and state-changing tool
+actions require explicit owner confirmation with result verification.
+
+## 12. Reporting a vulnerability
 
 Open a private issue with the repository owner.  Please include a
 reproduction step, the affected version and the impact.  Do not include real
 camera data, real biometric templates or production credentials in a report.
 
-## 12. Repository hygiene and previously committed data
+## 13. Repository hygiene and previously committed data
 
 Earlier revisions of this repository contained material that must not be in
 version control:
@@ -285,7 +312,7 @@ The embeddings in the old datastore were stored **unencrypted**.  They must be
 treated as compromised: the affected people should be asked to re-enrol (the
 new enrolment path encrypts the template) and the old embeddings deleted.
 
-## 13. Operator checklist before going live
+## 14. Operator checklist before going live
 
 * [ ] `OWNERAI_SECRET_KEY` and `OWNERAI_BIOMETRIC_ENCRYPTION_KEY` generated
       with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.

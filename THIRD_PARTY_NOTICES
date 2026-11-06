@@ -1,0 +1,62 @@
+# Third-Party Notices
+
+Aegis AI reimplements ideas and patterns from the following open-source
+projects.  Where code was adapted, the source licence is permissive (MIT or
+Apache-2.0) and attribution is given below.  No GPL or unlicensed code was
+copied; all adaptations were reimplemented in the Aegis AI (FastAPI/Python)
+architecture and ship behind opt-in feature flags.
+
+---
+
+## sujankim/jarvis-ai-platform
+- **Repository:** https://github.com/sujankim/jarvis-ai-platform
+- **Licence:** Apache License 2.0
+- **Adapted ideas:** long-term vector memory of events/preferences with owner
+  view/delete; per-camera time-of-day baseline with deviation alerts; provider
+  abstraction (local Ollama + cloud fallback); `doctor` / `benchmark-latency`
+  startup health probes; MCP tool runtime; ReACT agent-style multi-step tool
+  execution.
+- **Aegis AI files:** `ownerai/services/baseline.py`, `ownerai/services/doctor.py`,
+  `ownerai/services/mcp.py`, `ownerai/routers/baseline.py`,
+  `ownerai/routers/doctor.py`, `ownerai/routers/mcp.py`
+
+## PanPenek/JarvisAi
+- **Repository:** https://github.com/PanPenek/JarvisAi
+- **Licence:** MIT
+- **Adapted ideas:** local wake word ("Hey Jarvis") with stop/interrupt;
+  client-side speech-to-text + text-to-speech integration; offline-first
+  operation (no data leaves the machine).
+- **Aegis AI files:** `ownerai/services/wake_word.py`,
+  `ownerai/routers/wake_word.py`
+
+## adirangel/JARVIS
+- **Repository:** https://github.com/adirangel/JARVIS
+- **Licence:** MIT
+- **Adapted ideas:** explicit owner confirmation before state-changing tool
+  execution (purchase-protection pattern); command blocklist / input validation
+  patterns for SafeToolRegistry; forever-memory fact extraction pattern.
+- **Aegis AI files:** `ownerai/services/ai.py` (tool confirmation pattern),
+  `ownerai/services/mcp.py` (mutating-tool confirmation gating)
+
+## KofTwentyTwo/Jarvis
+- **Repository:** https://github.com/KofTwentyTwo/Jarvis
+- **Licence:** MIT
+- **Adapted ideas:** boot-health probes with honest ok/soft/loud/critical
+  severity and `.unknown(reason:)` when a dependency can't be verified;
+  per-turn replay/audit log of assistant turns; boundary-gate architectural
+  invariants.
+- **Aegis AI files:** `ownerai/services/doctor.py`,
+  `ownerai/services/replay.py`, `ownerai/routers/replay.py`
+
+---
+
+## Not adopted (per Aegis AI security principles)
+
+The following ideas from the surveyed repos were explicitly **not** adopted
+because they conflict with Aegis AI's owner-only/consent/grounding principles:
+
+* Runtime self-installing skills from the internet (adirangel/JARVIS) —
+  prohibited by the Aegis AI master prompt.
+* Unrestricted desktop control / screen-vision identification of people
+  (PanPenek/JarvisAi) — would violate the "never identify strangers" principle.
+* Auto-purchases or financial transactions — out of scope for a camera assistant.
