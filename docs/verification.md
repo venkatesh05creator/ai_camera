@@ -50,6 +50,11 @@ App starts OK, routes: 99   (was 67 baseline)
 | MCP tool runtime | Phase 3B #7 | ✅ test_doctor_mcp_wake | ✅ /api/mcp/tools | — | ✅ mutating needs confirmation | — | Verified |
 | Wake word | Phase 3B #3 | ✅ test_doctor_mcp_wake | ✅ /api/wake-word | — | ✅ no audio stored server-side | — | Verified |
 | World Monitor layers | Phase W | ✅ test_world_monitor | ✅ /api/world/* | — | ✅ read-only, no person tracking | — | Verified |
+| **aegis doctor CLI** | Phase O-1 | ✅ test_doctor_cli | ✅ `python main.py doctor` | — | ✅ honest ok/soft/loud/critical | — | Verified |
+| **Offline provider auto-detect** | Phase O-3 | ✅ test_ai_provider | ✅ `GET /api/ai/provider` | — | ✅ local-first, cloud optional | — | Verified |
+| **Overnight security briefing** | Phase O-2 | ✅ test_briefing | ✅ `/api/briefing/security` | — | ✅ events only, owner-opt-in | — | Verified |
+| **Offline eval harness** | Phase O-4 | ✅ test_eval_harness | ✅ `/api/eval/report` | — | ✅ grounding + hallucination tests | — | Verified |
+| **Skills format** | Phase O-5 | ✅ test_skills | ✅ `/api/skills`, `/api/skills/manifest` | — | ✅ no self-install from internet | — | Verified |
 | Security hardening | Phase S | ✅ test_security_findings | ✅ /api/health etc. | ✅ CSP/headers | ✅ findings.md + threat model | — | Verified |
 | Loading/empty/error states | Phase UX | — | — | ✅ dashboard skeleton/empty/retry | — | — | Verified (CSS + template) |
 | pip-audit scan | Phase S | — | — | — | ⚠️ not run (no network) | — | Limitation |

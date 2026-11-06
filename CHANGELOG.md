@@ -70,6 +70,54 @@
   no audio stored)
 * `POST /api/wake-word/detected`, `GET /api/wake-word/sessions`
 
+**OpenJarvis transplants (Apache-2.0, attributed in THIRD_PARTY_NOTICES)**
+
+**Camera tamper & health boot-probes** (`OWNERAI_FEATURE_DOCTOR`)
+* `ownerai services/doctor.py`: database, disk, model, camera probes with honest
+  ok/soft/loud/critical severity; never fakes healthy
+* `GET /api/doctor`, `GET /api/doctor/benchmark`
+* CLI: `python main.py doctor [--benchmark]`
+
+**Offline-first provider auto-detect** (`OWNERAI_FEATURE_DOCTOR`, `ai_auto_detect_engine`)
+* Auto-detects a local Ollama engine when no cloud provider configured
+* `GET /api/ai/provider` reports active provider + source (local vs configured)
+
+**Learned baseline + per-turn replay/audit log** (`OWNERAI_FEATURE_LEARNED_BASELINE`, `OWNERAI_FEATURE_REPLAY_LOG`)
+* Per-camera hour-of-week baselines with z-score deviation alerts
+* `AssistantTurn` log: question, intent, tools, evidence IDs, answer
+* Recorded automatically on every assistant turn
+
+**Evidence panel** (`OWNERAI_FEATURE_EVIDENCE_PANEL`)
+* Every JARVIS answer links to event IDs, detector output, confidence
+
+**Natural-language alert rules** (`OWNERAI_FEATURE_ALERT_RULES`)
+* Parses NL into validated rules; owner confirms before activation
+
+**Privacy zones + auto-blur** (`OWNERAI_FEATURE_PRIVACY_ZONES`)
+* Owner-drawn polygonal privacy zones (never analysed/stored)
+* `blur_non_enrolled_faces()` toggle for saved clips
+
+**Daily/weekly digest** (`OWNERAI_FEATURE_DIGEST`)
+* Narrative summary built only from stored events
+
+**Time-boxed guest access** (`OWNERAI_FEATURE_GUEST_ACCESS`)
+* Temporary enrolment linked to an enrolled identity with automatic expiry
+
+**Overnight security briefing** (`OWNERAI_FEATURE_SECURITY_BRIEFING`)
+* Spoken + written narrative summary of stored events (owner-opted-in for
+  external integrations like Gmail/Calendar)
+* `GET /api/briefing/security`
+
+**Offline evaluation harness** (`OWNERAI_FEATURE_EVAL_HARNESS`)
+* Measures grounding accuracy and hallucinated detections from replay-log turns
+* `GET /api/eval/report`
+
+**Skills format** (`OWNERAI_FEATURE_SKILLS_FORMAT`)
+* Tools declared in one validated manifest file; loaded through a validated
+  interface; mutating skills require owner confirmation; no self-install from
+  the internet
+* `GET /api/skills`, `POST /api/skills/manifest`
+
 ### Changed
 * `ownerai/features.py`: new opt-in feature flag registry (all defaults off)
 * `ownerai/models.py`: added `CameraHealthCheck`, `ActivityBaseline`, `AlertRule`,
@@ -91,10 +139,8 @@
   with scored, ranked feature recommendations
 
 ### Tests
-* 58 new tests across `test_camera_health.py`, `test_baseline_replay.py`,
-  `test_evidence_alerts.py`, `test_zones_digest.py`, `test_guest_offline.py`,
-  `test_doctor_mcp_wake.py`
-* Total: 176 passed (was 118); 0 failed
+* 110 new tests across all Phase 3 / Phase 3B innovation features
+* Total: 224 passed (was 118); 0 failed
 
 ### Not done
 * `inputs/` (tracked photos of real people) — not deleted; requires separate

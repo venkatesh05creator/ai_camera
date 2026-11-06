@@ -48,6 +48,25 @@ architecture and ship behind opt-in feature flags.
 - **Aegis AI files:** `ownerai/services/doctor.py`,
   `ownerai/services/replay.py`, `ownerai/routers/replay.py`
 
+## open-jarvis/OpenJarvis
+- **Repository:** https://github.com/open-jarvis/OpenJarvis
+- **Licence:** Apache License 2.0
+- **Adapted ideas:** honest `doctor` health-probe command with ok/soft/loud/
+  critical severity; offline evaluation harness measuring grounding accuracy
+  and hallucinated detections from replay-log turns; engine auto-detect + switch
+  (local Ollama first, cloud optional, visible provider indicator); overnight
+  security briefing agent narrative; skills manifest format for declaring tools
+  in one validated file (no self-install from the internet).
+- **Aegis AI files:** `ownerai/services/doctor.py`,
+  `ownerai/services/eval.py`, `ownerai/services/ai.py` (provider_summary,
+  auto-detect), `ownerai/services/briefing.py`,
+  `ownerai/services/skills.py`, `ownerai/routers/briefing.py`,
+  `ownerai/routers/eval.py`, `ownerai/routers/skills.py`,
+  `ownerai/routers/doctor.py`, `ownerai/main.py` (`/api/doctor`,
+  `/api/ai/provider`)
+  - Homepage: https://openjarvis.stanford.edu/ (Stanford Hazy Research /
+    Scaling Intelligence Lab); paper arXiv:2605.17172
+
 ---
 
 ## Not adopted (per Aegis AI security principles)

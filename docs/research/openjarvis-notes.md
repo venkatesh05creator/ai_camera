@@ -161,4 +161,16 @@ Per the master prompt, I present this ranked list and **WAIT for your pick** bef
 4. **O-2 Overnight security briefing agent** — value (4), higher effort (4), medium risk (3) — needs careful consent gating.
 5. **O-5 Skills format** — value (3), higher effort (4), medium-high risk (4) — must not allow auto-install from internet.
 
-**WAITING FOR YOUR PICK.** Tell me which O-candidate(s) to build (or "none"), and I'll implement the chosen one(s) behind a feature flag with tests, then proceed to Phase W (World Monitor) and Phase UX (loading/empty states).
+## 13. Implemented (this branch)
+
+All five candidates above were implemented behind opt-in feature flags, each with tests:
+
+| Feature | Aegis AI files | Feature flag | Tests |
+|---------|---------------|--------------|-------|
+| O-1 `aegis doctor` CLI | `ownerai/main.py`, `ownerai/services/ai.py` | `DOCTOR` | `tests/test_doctor_cli.py` |
+| O-2 Overnight security briefing | `ownerai/services/briefing.py`, `ownerai/routers/briefing.py` | `SECURITY_BRIEFING` | `tests/test_briefing.py` |
+| O-3 Engine auto-detect + switch | `ownerai/services/ai.py`, `ownerai/main.py` | `OFFLINE_FIRST` + `ai_auto_detect_engine` | `tests/test_ai_provider.py` |
+| O-4 Trace log + offline eval harness | `ownerai/services/eval.py`, `ownerai/routers/eval.py` | `REPLAY_LOG` + `EVAL_HARNESS` | `tests/test_eval_harness.py` |
+| O-5 Skills format | `ownerai/services/skills.py`, `ownerai/routers/skills.py` | `SKILLS_FORMAT` | `tests/test_skills.py` |
+
+All are Apache-2.0 ideas adapted (reimplemented) from OpenJarvis with attribution in `THIRD_PARTY_NOTICES`. None adopt runtime self-installing skills from the internet (prohibited by the master prompt).
