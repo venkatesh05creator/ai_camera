@@ -121,6 +121,7 @@ def chat(
 
     pending_actions: List[dict[str, Any]] = []
     reply_text = response.text
+    evidence_event_ids: List[int] = []
     suggestion = parse_tool_call(response.text)
     if suggestion is not None:
         try:
@@ -140,6 +141,13 @@ def chat(
                 )
             else:
                 reply_text = f"Action completed: {outcome.get('tool')}"
+                # Capture evidence event IDs returned by the tool.
+                result = outcome.get("result") or {}
+                if isinstance(result, dict):
+                    latest = result.get("latest") or []
+                    for item in latest:
+                        if isinstance(item, dict) and "id" in item:
+                            evidence_event_ids.append(int(item["id"]))
         except AIError:
             pending_actions = []
 
@@ -175,7 +183,7 @@ def chat(
             user_message=payload.message,
             intent=intent,
             tools_called=[suggestion] if suggestion is not None else [],
-            evidence_event_ids=[],
+            evidence_event_ids=evidence_event_ids,
             answer=reply_text,
         )
 
@@ -186,6 +194,7 @@ def chat(
         tokens_used=response.tokens,
         provider=response.provider,
         pending_actions=pending_actions,
+        evidence_event_ids=evidence_event_ids,
     )
 
 

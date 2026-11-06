@@ -29,12 +29,14 @@ from .middleware import (
 from .models import Device
 from .routers import (
     admin,
+    alert_rules,
     auth,
     baseline,
     chat,
     contact,
     devices,
     events,
+    evidence,
     health,
     hud,
     identities,
@@ -144,6 +146,8 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(baseline.router)
     app.include_router(replay.router)
+    app.include_router(evidence.router)
+    app.include_router(alert_rules.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
     app.include_router(voice.router)

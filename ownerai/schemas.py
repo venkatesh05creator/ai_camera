@@ -205,6 +205,7 @@ class ChatResponse(BaseModel):
     tokens_used: int
     provider: str
     pending_actions: List[Dict[str, Any]] = Field(default_factory=list)
+    evidence_event_ids: List[int] = Field(default_factory=list)
 
 
 class ConversationOut(BaseModel):
