@@ -24,11 +24,14 @@ from ..services.ai import (
     generate_reply,
     parse_tool_call,
 )
+from ..services.replay import ReplayLog
 from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["assistant"])
+
+_replay = ReplayLog()
 
 
 @router.get("/conversations", response_model=List[ConversationOut])
@@ -161,6 +164,21 @@ def chat(
         ip=_client_ip(request),
         detail={"provider": response.provider, "tokens": response.tokens},
     )
+
+    if _replay._enabled():
+        intent = "chat"
+        if suggestion is not None:
+            intent = f"tool:{suggestion['tool']}"
+        _replay.record(
+            owner_id=user.id,
+            conversation_id=conversation.id,
+            user_message=payload.message,
+            intent=intent,
+            tools_called=[suggestion] if suggestion is not None else [],
+            evidence_event_ids=[],
+            answer=reply_text,
+        )
+
     return ChatResponse(
         conversation_id=conversation.id,
         message_id=assistant_message.id,
