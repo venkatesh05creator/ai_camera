@@ -126,6 +126,13 @@ FLAGS: Final[Dict[str, FeatureFlag]] = {
         "summary of stored events, owner-opted-in for external integrations.",
         default=False,
     ),
+    "SKILLS_FORMAT": FeatureFlag(
+        "SKILLS_FORMAT",
+        "Skills format: tools declared in one validated manifest file and "
+        "loaded through a validated interface; no self-install from the "
+        "internet.",
+        default=False,
+    ),
 }
 
 

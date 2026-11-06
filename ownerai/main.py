@@ -50,6 +50,7 @@ from .routers import (
     pages,
     replay,
     search,
+    skills,
     vision,
     voice,
     wake_word,
@@ -167,6 +168,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(world.router)
     app.include_router(eval.router)
     app.include_router(briefing.router)
+    app.include_router(skills.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
     app.include_router(voice.router)
