@@ -20,14 +20,18 @@ from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
 from . import db
+from . import globals as app_globals
 from .config import PROJECT_ROOT, Settings, get_settings
 from .logging_setup import setup_logging
 from .middleware import (
+    ApiRateLimitMiddleware,
     HTTPSRedirectMiddleware,
+    PanicMiddleware,
     RequestBodyLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
+from .services.auth_service import AuthError
 
 STARTED_AT = time.time()
 
@@ -51,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app_globals.reset_panic()
         db.get_engine(settings)
         db.get_session_factory()
         from .models.base import create_all
@@ -69,10 +74,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.panic = {"active": False, "until": None, "reason": None}
 
     # --- middleware (outermost first) --------------------------------------
+    # NOTE: starlette runs the LAST-added middleware first (outermost).
     app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_request_body_bytes)
+    app.add_middleware(ApiRateLimitMiddleware, settings=settings)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
     app.add_middleware(HTTPSRedirectMiddleware, enabled=settings.https_only)
+    app.add_middleware(PanicMiddleware)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -81,6 +89,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["X-CSRF-Token", "Content-Type", "Authorization"],
         )
+
+    # --- panic state shared with PanicMiddleware -----------------------------
+    app.state.panic = app_globals.PANIC
+
+    # --- routers --------------------------------------------------------------
+    from .routers import auth as auth_router
+    from .routers import system as system_router
+    app.include_router(auth_router.router)
+    app.include_router(system_router.router)
 
     # --- health: REAL metrics only ------------------------------------------
     @app.get("/healthz", include_in_schema=False)
@@ -91,18 +108,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "app_env": settings.app_env,
             "uptime_seconds": round(time.time() - STARTED_AT, 2),
             "python": platform.python_version(),
-            "panic_active": app.state.panic["active"],
+            "panic_active": bool(app_globals.PANIC.get("active")),
             "db": db_health,
         })
 
-    # --- panic switch endpoint secured in commit 3 (owner-scoped); the state
-    # object lives on app.state so middleware can consult it globally. --------
-
     # --- error handling -------------------------------------------------------
+    @app.exception_handler(AuthError)
+    async def auth_error(request: Request, exc: AuthError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={"error": {"code": exc.code, "message": exc.message}})
+
     @app.exception_handler(Exception)
     async def unhandled(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", "-")
-        import logging
         logging.getLogger(__name__).exception(
             "unhandled error rid=%s", request_id)
         return JSONResponse(

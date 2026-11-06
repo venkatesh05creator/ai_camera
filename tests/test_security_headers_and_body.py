@@ -37,8 +37,10 @@ def test_unknown_route_returns_json_404(client):
         resp.headers["content-type"].startswith("application/json")
 
 
-def test_https_only_redirects():
+def test_https_only_redirects(tmp_path):
+    import pathlib
     import secrets
+    import tempfile
 
     from starlette.testclient import TestClient
 
@@ -50,6 +52,7 @@ def test_https_only_redirects():
         app_env="test",
         https_only=True,
         secret_key=secrets.token_hex(32),
+        database_url=f"sqlite+aiosqlite:///{(pathlib.Path(tempfile.mkdtemp(prefix='aegis-https-')) / 'aegis.db').as_posix()}",
         json_logs=False,
         log_level="WARNING",
         hsts_enabled=False,

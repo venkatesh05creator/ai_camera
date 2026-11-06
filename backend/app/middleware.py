@@ -14,9 +14,95 @@ from datetime import UTC, datetime
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from . import globals as app_globals
 from .config import Settings
 
 logger = logging.getLogger("aegis.request")
+
+_PANIC_EXEMPT = frozenset({
+    "/healthz",
+    "/api/auth/login",
+    "/api/auth/status",
+    "/api/system/panic/clear",
+})
+
+
+class PanicMiddleware:
+    """When the panic switch is on, block everything except the escape routes.
+
+    Escape routes: the health probe, the login endpoint (an owner whose
+    session expired must be able to sign back in) and the panic-clear route.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and app_globals.PANIC.get("active"):
+            path = scope.get("path", "")
+            if path not in _PANIC_EXEMPT:
+                body = json.dumps({"error": {"code": "panic_active",
+                                             "message": "Panic mode is active"}}).encode()
+                await send({"type": "http.response.start", "status": 503,
+                            "headers": [(b"content-type", b"application/json"),
+                                        (b"content-length", str(len(body)).encode())]})
+                await send({"type": "http.response.body", "body": body})
+                return
+        await self.app(scope, receive, send)
+
+
+class ApiRateLimitMiddleware:
+    """Per-IP fixed-window limit on /api/* requests (DB-backed, honest 429s)."""
+
+    def __init__(self, app: ASGIApp, settings: Settings) -> None:
+        self.app = app
+        self.settings = settings
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (scope["type"] != "http" or not self.settings.rate_limit_enabled
+                or not scope.get("path", "").startswith("/api")):
+            await self.app(scope, receive, send)
+            return
+
+        from . import db
+        from .services.rate_limit import hit as _rate_hit
+
+        if db._engine is None:  # engine not up yet (e.g. startup probe); fail open
+            await self.app(scope, receive, send)
+            return
+
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1")
+                   for k, v in scope.get("headers", [])}
+        if self.settings.trust_proxy_headers:
+            ip = headers.get("x-forwarded-for", "").split(",")[0].strip()
+        else:
+            client = scope.get("client")
+            ip = client[0] if client else ""
+        bucket = f"api:{ip or 'unknown'}"
+        allowed = True
+        try:
+            factory = db.get_session_factory()
+            async with factory() as session:
+                allowed = await _rate_hit(
+                    session, bucket, limit=self.settings.api_rate_limit,
+                    window_seconds=self.settings.api_rate_window_seconds)
+                await session.commit()
+        except Exception:
+            # defensive: limiter outage must not take down the whole API
+            logger.exception("rate limiter failure - allowing request")
+            allowed = True
+
+        if not allowed:
+            body = json.dumps({"error": {"code": "rate_limited",
+                                         "message": "too many requests"}}).encode()
+            await send({"type": "http.response.start", "status": 429,
+                        "headers": [(b"content-type", b"application/json"),
+                                    (b"content-length", str(len(body)).encode()),
+                                    (b"retry-after",
+                                     str(self.settings.api_rate_window_seconds).encode())]})
+            await send({"type": "http.response.body", "body": body})
+            return
+        await self.app(scope, receive, send)
 
 
 class RequestBodyLimitMiddleware:
