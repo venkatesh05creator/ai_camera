@@ -109,6 +109,12 @@ class Settings(BaseSettings):
     openrouter_api_key: SecretStr = SecretStr("")
     nvidia_api_key: SecretStr = SecretStr("")
 
+    # face recognition (Phase 5: People, consent-enrolled only) ----------------
+    face_model_dir: str = "./models/insightface"
+    face_model_name: str = "buffalo_sc"
+    face_match_threshold: float = 0.35  # cosine similarity; below = unknown
+    face_min_enrol_samples: int = 3
+
     @model_validator(mode="after")
     def _normalize_db_url(self) -> Settings:
         if self.database_url.startswith("sqlite:///") and "aiosqlite" not in self.database_url:

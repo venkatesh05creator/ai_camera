@@ -114,13 +114,15 @@ async def update_camera(session: AsyncSession, camera_id: int, *,
 async def record_event(session: AsyncSession, settings: Settings, *,
                        camera_id: int, kind: str, person_count: int,
                        motion_score: float, snapshot_jpeg: bytes | None,
-                       snapshot_status: str) -> CameraEvent:
+                       snapshot_status: str,
+                       labels_encrypted: str | None = None) -> CameraEvent:
     event = CameraEvent(
         camera_id=camera_id, kind=kind, person_count=person_count,
         motion_score=motion_score,
         snapshot_encrypted=(encrypt_text(memory_key(settings), snapshot_jpeg.decode("latin-1"))
                             if snapshot_jpeg else None),
-        snapshot_status=snapshot_status)
+        snapshot_status=snapshot_status,
+        labels_encrypted=labels_encrypted)
     session.add(event)
     await session.flush()
     health = await session.get(CameraHealth, camera_id)

@@ -197,3 +197,6 @@ Desktop.ini
 # Frontend build artifacts
 web/dist/
 web/tsconfig.tsbuildinfo
+
+# face models (fetched by setup; ~16MB ONNX)
+models/

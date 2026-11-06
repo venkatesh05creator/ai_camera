@@ -11,11 +11,13 @@ from .cameras import (
     Notification,
 )
 from .memory import MemoryItem
+from .people import FaceTemplate, Person
 from .provider import ProviderUsage
 from .rate import LoginFailure, RateCounter
 from .session import Session
 from .user import User
 
 __all__ = ["AuditLog", "Camera", "CameraEvent", "CameraHealth",
-           "IngestNonce", "LoginFailure", "MemoryItem", "Notification",
-           "ProviderUsage", "RateCounter", "Session", "User"]
+           "FaceTemplate", "IngestNonce", "LoginFailure", "MemoryItem",
+           "Notification", "Person", "ProviderUsage",
+           "RateCounter", "Session", "User"]

@@ -105,12 +105,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from .routers import ai as ai_router
     from .routers import auth as auth_router
     from .routers import cameras as cameras_router
+    from .routers import people as people_router
     from .routers import system as system_router
     app.include_router(auth_router.router)
     app.include_router(ai_router.router)
     app.include_router(ai_router.memory_router)
     app.include_router(cameras_router.router)
     app.include_router(cameras_router.notifications_router)
+    app.include_router(people_router.router)
     app.include_router(system_router.router)
 
     # --- health: REAL metrics only ------------------------------------------
@@ -145,6 +147,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(CameraError)
     async def camera_error(request: Request, exc: CameraError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={"error": {"code": exc.code, "message": exc.message}})
+
+    from .services.people_service import PeopleError
+
+    @app.exception_handler(PeopleError)
+    async def people_error(request: Request, exc: PeopleError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status,
             content={"error": {"code": exc.code, "message": exc.message}})

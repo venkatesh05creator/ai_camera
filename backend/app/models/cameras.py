@@ -65,6 +65,9 @@ class CameraEvent(Base):
     motion_score: Mapped[float] = mapped_column(Float, default=0.0)
     snapshot_encrypted: Mapped[str | None] = mapped_column(Text, default=None)
     snapshot_status: Mapped[str] = mapped_column(String(32), default="none")
+    # encrypted JSON: {"known":[{"person_id": 3, "name": "Venki", "score"]:
+    #                   ...}], "unknown_faces": 1}
+    labels_encrypted: Mapped[str | None] = mapped_column(Text, default=None)
 
     __table_args__ = (Index("ix_camera_events_cam_ts", "camera_id", "ts"),)
 

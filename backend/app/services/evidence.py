@@ -140,7 +140,8 @@ async def build_pack(session: AsyncSession, settings: Settings) -> EvidencePack:
             f"E{len(items) + 1}", source=f"memory #{item.id}",
             title=item.kind, text=public["text"]))
     # camera verdicts (honest: counts/offline only, never identities)
-    from ..models.cameras import Camera, CameraHealth
+    from ..models.cameras import Camera, CameraEvent, CameraHealth
+    from ..services import people_service as _people
 
     cameras = (await session.execute(
         select(Camera).order_by(Camera.id.asc()))).scalars().all()
@@ -151,6 +152,21 @@ async def build_pack(session: AsyncSession, settings: Settings) -> EvidencePack:
             f"Camera '{camera.name}' ({camera.kind}) is {status['status']}")
         if status.get("error"):
             text += f" — error: {status['error']}"
+        # latest face labels (decrypted server-side; unknown stays unknown)
+        latest = (await session.execute(
+            select(CameraEvent)
+            .where(CameraEvent.camera_id == camera.id,
+                   CameraEvent.labels_encrypted.is_not(None))
+            .order_by(CameraEvent.ts.desc()).limit(1))).scalar_one_or_none()
+        if latest is not None:
+            labels = await _people.decrypt_labels(
+                settings, latest.labels_encrypted)
+            if labels.get("known"):
+                who = ", ".join(
+                    f"{k['name']} (score {k['score']})" for k in labels["known"])
+                text += f" — last saw: {who}"
+            if labels.get("unknown_faces"):
+                text += f", plus {labels['unknown_faces']} unknown person(s)"
         items.append(EvidenceItem(
             f"E{len(items) + 1}", source=f"camera #{camera.id}",
             title=camera.name, text=text))

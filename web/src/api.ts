@@ -205,6 +205,25 @@ export const api = {
   memoryDelete: (id: number) =>
     request<{ ok: boolean }>(`/api/memory/${id}`, { method: 'DELETE' }),
   memoryExportUrl: () => '/api/memory/export',
+  // --- Phase 5: people ---------------------------------------------------------
+  people: () => request<{ people: Array<{
+    id: number; name: string; consent_ts: string; has_template: boolean;
+    samples_count: number; quality: number | null;
+  }>; count: number }>('/api/people'),
+  personCreate: (name: string, consent_text: string) =>
+    request<{ id: number; name: string }>('/api/people', {
+      method: 'POST',
+      body: JSON.stringify({ name, consent_text }),
+    }),
+  personEnrol: (id: number, images: string[]) =>
+    request<{ id: number; samples: number; quality: number }>(`/api/people/${id}/enrol`, {
+      method: 'POST',
+      body: JSON.stringify({ images }),
+    }),
+  personWithdraw: (id: number) =>
+    request<{ ok: boolean }>(`/api/people/${id}`, { method: 'DELETE' }),
+  personLastSeen: (id: number) =>
+    request<{ person_id: number; name: string; seen: Array<{ ts: string; camera_id: number; kind: string; person_count: number }> }>(`/api/people/${id}/last-seen`),
   // --- Phase 4: cameras -------------------------------------------------------
   cameras: () => request<Array<{
     id: number; name: string; kind: string; source: string;

@@ -20,10 +20,12 @@ RUN pip install --no-cache-dir uv && \
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY backend/ ./backend/
+COPY models/insightface/ ./models/insightface/
 COPY --from=webbuild /build/web/dist/ ./web/dist/
 
 ENV PYTHONPATH=/srv/aegis
 ENV OWNERAI_HOST=0.0.0.0 OWNERAI_PORT=8000
+ENV OWNERAI_FACE_MODEL_DIR=/srv/aegis/models/insightface
 
 # DB + logs live outside the image layer; mount them in compose.
 VOLUME ["/srv/aegis/var"]

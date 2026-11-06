@@ -105,3 +105,14 @@ class CameraOut(StrictModel):
     retention_days: int
     running: bool = False
     health: dict = {}
+
+
+# --- Phase 5: people ---------------------------------------------------------
+
+class PersonIn(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    consent_text: str = Field(min_length=1, max_length=2000)
+
+
+class EnrolIn(StrictModel):
+    images: list[str] = Field(min_length=1, max_length=10)

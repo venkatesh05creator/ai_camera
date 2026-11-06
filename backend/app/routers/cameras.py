@@ -14,8 +14,11 @@ from ..models.cameras import CameraEvent, Notification
 from ..models.session import Session as SessionRow
 from ..models.user import User
 from ..schemas import CameraIn, CameraOut, CameraUpdateIn
+from ..security.crypto import encrypt_text
 from ..services import audit_service, camera_service
 from ..services.camera_service import CameraError
+from ..services.memory_service import memory_key as memory_key_fn
+from ..services.people_service import identify_faces, labels_to_json
 from ..vision.pipeline import FrameProcessor
 
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
@@ -155,12 +158,21 @@ async def ingest_frame(
     verdict = processor.process(frame, now=0.0)
     if verdict.persons > 0:
         event = processor.make_event(frame, verdict, now=0.0)
+        labels_encrypted = None
+        try:
+            faces = await identify_faces(db, settings, frame)
+            if faces:
+                labels_encrypted = encrypt_text(
+                    memory_key_fn(settings), labels_to_json(faces))
+        except Exception:
+            labels_encrypted = None  # identification is best-effort, never fatal
         await camera_service.record_event(
             db, settings, camera_id=camera_id, kind="person",
             person_count=event.person_count,
             motion_score=event.motion_score,
             snapshot_jpeg=event.snapshot_jpeg,
-            snapshot_status=event.snapshot_status)
+            snapshot_status=event.snapshot_status,
+            labels_encrypted=labels_encrypted)
     await camera_service.mark_frame(db, camera_id, fps=1.0)
     await db.commit()
     return {"motion_score": verdict.motion_score,

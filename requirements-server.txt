@@ -15,3 +15,12 @@ PyOTP==2.10.0
 httpx==0.28.1
 numpy==2.5.4
 opencv-python-headless==4.10.0.84  # CPU vision: VideoCapture, motion, HOG person, Haar blur
+insightface==2.1                    # face detection/embeddings (SCRFD + ArcFace)
+onnx==1.23.2
+onnxruntime==1.31.1
+pillow==13.0.0
+protobuf==7.36.2
+scikit-image==0.26.0
+scipy==1.18.1
+tifffile==2026.10.15
+tqdm==4.70.1
