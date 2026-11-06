@@ -1,0 +1,1 @@
+"AI provider layer (local-first chat, optional metered cloud fallbacks)."

@@ -97,6 +97,18 @@ class Settings(BaseSettings):
     # crypto keys (later phases reuse these env names) ------------------------
     biometric_encryption_key: SecretStr = SecretStr("")
 
+    # LLM (Phase 3: AI brain, local-first) ------------------------------------
+    ollama_host: str = "http://127.0.0.1:11434"
+    ollama_model: str = "llama3.1:8b"
+    llm_default_provider: str = "ollama"
+    chat_max_tokens: int = 2048
+    chat_temperature: float = 0.0  # factual steps: deterministic by default
+    chat_timeout_seconds: float = 120.0
+    groq_api_key: SecretStr = SecretStr("")
+    gemini_api_key: SecretStr = SecretStr("")
+    openrouter_api_key: SecretStr = SecretStr("")
+    nvidia_api_key: SecretStr = SecretStr("")
+
     @model_validator(mode="after")
     def _normalize_db_url(self) -> Settings:
         if self.database_url.startswith("sqlite:///") and "aiosqlite" not in self.database_url:
