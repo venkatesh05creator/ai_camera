@@ -51,6 +51,7 @@ from .routers import (
     vision,
     voice,
     wake_word,
+    world,
     zones,
 )
 from .sessions import session_from_token
@@ -160,6 +161,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(mcp.router)
     app.include_router(zones.router)
     app.include_router(wake_word.router)
+    app.include_router(world.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
     app.include_router(voice.router)

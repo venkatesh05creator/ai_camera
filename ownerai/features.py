@@ -108,6 +108,12 @@ FLAGS: Final[Dict[str, FeatureFlag]] = {
         "Local vision plus offline AI provider so the app works without internet.",
         default=False,
     ),
+    "WORLD_MONITOR": FeatureFlag(
+        "WORLD_MONITOR",
+        "Lawful public-data layers (aircraft, earthquakes, fires, cyber) as "
+        "read-only JARVIS tools; no person tracking.",
+        default=False,
+    ),
 }
 
 

@@ -191,6 +191,10 @@ class Settings(BaseSettings):
     # Doctor / benchmark
     doctor_disk_warn_percent: int = 90                # warn when disk usage exceeds this
 
+    # World Monitor (lawful public-data layers)
+    world_monitor_enabled: bool = False               # opt-in; aircraft/earthquakes/fires/cyber
+    world_firms_api_key: Optional[str] = None         # NASA FIRMS key (optional source)
+
     # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------

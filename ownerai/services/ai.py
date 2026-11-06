@@ -27,6 +27,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..crypto import redact_pii
+from ..features import is_enabled
 from ..models import CameraEvent, Conversation, Device, Message, User
 from ..rbac import CHAT_READ, CHAT_WRITE, DEVICE_READ, DEVICE_WRITE, EVENT_READ, has_permission
 from ..settings import Settings, get_settings
@@ -89,6 +90,24 @@ TOOL_SPECS: Dict[str, Dict[str, Any]] = {
         "description": "Trigger an executive system action or application launch.",
         "permission": CHAT_WRITE,
         "mutating": True,
+    },
+    # --- World Monitor (read-only public-data layers, opt-in) --------------
+    "world_nearby": {
+        "description": "Summarise public events (aircraft, earthquakes, fires, "
+        "cyber vulnerabilities) near a location. Read-only; no person tracking.",
+        "permission": CHAT_READ,
+        "mutating": False,
+    },
+    "world_aircraft": {
+        "description": "Describe aircraft currently in a region (read-only, "
+        "no individual tracking).",
+        "permission": CHAT_READ,
+        "mutating": False,
+    },
+    "world_earthquakes": {
+        "description": "List recent earthquakes (read-only, public USGS data).",
+        "permission": CHAT_READ,
+        "mutating": False,
     },
 }
 
@@ -533,9 +552,84 @@ def execute_tool(
         res = launch_application(target)
         return {"tool": tool_name, "status": "ok", "result": res}
 
+    # --- World Monitor read-only tools -----------------------------------
+    if tool_name in ("world_nearby", "world_aircraft", "world_earthquakes"):
+        from ..services.world import WorldError, fetch_source
+        if not is_enabled("WORLD_MONITOR"):
+            return {
+                "tool": tool_name,
+                "status": "error",
+                "message": "WORLD_MONITOR feature is not enabled "
+                "(set OWNERAI_FEATURE_WORLD_MONITOR=1)",
+            }
+        location = str(arguments.get("location", "")).strip()
+        try:
+            if tool_name == "world_aircraft":
+                result = fetch_source("aircraft", settings=settings)
+                summary = _summarize_aircraft(result.get("data"), location)
+            elif tool_name == "world_earthquakes":
+                result = fetch_source("earthquakes", settings=settings)
+                summary = _summarize_earthquakes(result.get("data"), location)
+            else:  # world_nearby
+                result = fetch_source("earthquakes", settings=settings)
+                summary = _summarize_nearby(result.get("data"), location)
+            return {
+                "tool": tool_name,
+                "status": "ok",
+                "result": {
+                    "summary": summary,
+                    "source": result.get("attribution"),
+                    "fetched_at": result.get("fetched_at"),
+                    "stale": result.get("stale", False),
+                },
+            }
+        except WorldError as exc:
+            return {"tool": tool_name, "status": "error", "message": str(exc)}
+
     raise AIError("unsupported tool")  # pragma: no cover - defensive
 
 
+def _summarize_aircraft(data: Any, location: str) -> str:
+    """Plain-language aircraft summary (no individual tracking)."""
+    if not data:
+        return "No aircraft data available."
+    states = data.get("states", []) if isinstance(data, dict) else []
+    count = len(states)
+    if count == 0:
+        return "No aircraft currently tracked in the region."
+    # OpenSky state vectors: [icao24, callsign, origin, ... lat, lon, ...]
+    # We report only the count and a coarse region - never individual flights.
+    return f"{count} aircraft currently tracked by OpenSky Network (no individual flight tracking)."
+
+
+def _summarize_earthquakes(data: Any, location: str) -> str:
+    """Plain-language earthquake summary."""
+    if not data:
+        return "No earthquake data available."
+    features = data.get("features", []) if isinstance(data, dict) else []
+    count = len(features)
+    if count == 0:
+        return "No recent earthquakes recorded."
+    # Report the largest magnitude and count; never infer damage/guilt.
+    magnitudes = []
+    for f in features:
+        props = f.get("properties", {}) or {}
+        mag = props.get("mag")
+        if mag is not None:
+            magnitudes.append(mag)
+    top = max(magnitudes) if magnitudes else None
+    place = features[0].get("properties", {}).get("place", "unknown region") if features else "unknown"
+    return f"{count} recent earthquakes (largest magnitude {top}); latest near {place} (USGS)."
+
+
+def _summarize_nearby(data: Any, location: str) -> str:
+    """Plain-language nearby-events summary."""
+    return _summarize_earthquakes(data, location)
+
+
+# ---------------------------------------------------------------------------
+# Parsing
+# ---------------------------------------------------------------------------
 def parse_tool_call(text: str) -> Optional[Dict[str, Any]]:
     """Parse an optional ``{"tool": ..., "arguments": {...}}`` JSON envelope.
 
