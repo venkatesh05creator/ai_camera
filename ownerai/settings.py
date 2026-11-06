@@ -165,6 +165,33 @@ class Settings(BaseSettings):
     ai_daily_request_budget: int = 200
 
     # ------------------------------------------------------------------
+    # Innovation features (Phase 3 / Phase 3B)
+    # ------------------------------------------------------------------
+    # Camera tamper & health detection
+    camera_health_blur_threshold: float = 80.0        # Laplacian variance below = blurry
+    camera_health_low_light_threshold: float = 30.0   # mean brightness below = low light
+    camera_health_frozen_seconds: int = 30            # no new frames for this long = frozen
+
+    # Learned baseline
+    baseline_learn_window_days: int = 7               # days of history to learn from
+    baseline_deviation_multiplier: float = 3.0        # std-dev multiplier for alerting
+
+    # Alert rules
+    alert_rules_max_per_owner: int = 20               # cap on stored rules
+
+    # Privacy zones
+    privacy_blur_enabled: bool = False                # blur non-enrolled faces in saved clips
+
+    # Guest access
+    guest_access_default_ttl_hours: int = 24          # default temporary enrolment TTL
+
+    # Digest
+    digest_summary_max_events: int = 50               # max events fed into a digest
+
+    # Doctor / benchmark
+    doctor_disk_warn_percent: int = 90                # warn when disk usage exceeds this
+
+    # ------------------------------------------------------------------
     # Validators
     # ------------------------------------------------------------------
     @field_validator("trusted_hosts", "cors_origins", "allow_private_camera_hosts", mode="before")

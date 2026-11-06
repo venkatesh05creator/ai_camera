@@ -312,3 +312,178 @@ class DeviceNonce(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     __table_args__ = (UniqueConstraint("device_id", "nonce", name="uq_device_nonce"),)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 / Phase 3B innovation models
+# ---------------------------------------------------------------------------
+
+
+class CameraHealthCheck(Base):
+    """Result of a camera health probe.
+
+    Records whether a camera is healthy or degraded (tampered lens, blur,
+    low light, frozen stream).  Metadata only - never raw frames.
+    """
+
+    __tablename__ = "camera_health_checks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[int] = mapped_column(
+        ForeignKey("devices.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)  # healthy | tampered | blurry | low_light | frozen
+    blur_variance: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    mean_brightness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    details_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_camera_health_device_checked", "device_id", "checked_at"),)
+
+
+class ActivityBaseline(Base):
+    """Learned 'normal' activity per camera and time-of-day.
+
+    One row per (device, hour-of-week) bucket storing mean + std-dev of
+    event counts so genuine deviations can be flagged with an explanation.
+    """
+
+    __tablename__ = "activity_baselines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[int] = mapped_column(
+        ForeignKey("devices.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    hour_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 0..167 (hour * 7 + weekday)
+    mean_events: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    stddev_events: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    sample_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("device_id", "hour_of_week", name="uq_baseline_device_hour"),
+        Index("ix_activity_baseline_device", "device_id"),
+    )
+
+
+class AlertRule(Base):
+    """A natural-language alert rule parsed into a validated, owner-confirmed rule.
+
+    The rule is stored as structured JSON so it can be evaluated against
+    incoming events without re-parsing free text.
+    """
+
+    __tablename__ = "alert_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    raw_nl: Mapped[str] = mapped_column(Text, nullable=False)  # original owner phrasing
+    parsed_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)  # structured rule
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    confirmed_by_owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_triggered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    trigger_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_alert_rules_owner_enabled", "owner_id", "enabled"),)
+
+
+class PrivacyZone(Base):
+    """An owner-drawn privacy zone on a camera.
+
+    Zones are never analysed or stored as raw frames; they define regions the
+    detector must ignore.
+    """
+
+    __tablename__ = "privacy_zones"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    device_id: Mapped[int] = mapped_column(
+        ForeignKey("devices.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    polygon_json: Mapped[str] = mapped_column(Text, nullable=False)  # [[x,y], ...] normalised 0..1
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_privacy_zones_device", "device_id"),)
+
+
+class AssistantTurn(Base):
+    """Per-turn replay / audit log of every assistant turn.
+
+    Records the question, resolved intent, tools called, evidence used and
+    the answer so that every response can be traced back to its source.
+    """
+
+    __tablename__ = "assistant_turns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    conversation_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
+    )
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_message: Mapped[str] = mapped_column(Text, nullable=False)
+    intent: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    tools_called_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    evidence_event_ids_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_assistant_turns_owner_created", "owner_id", "created_at"),)
+
+
+class GuestAccess(Base):
+    """Time-boxed guest enrolment that expires automatically.
+
+    Links a guest-facing identifier to an enrolled identity with an expiry;
+    verification against an expired grant always returns "not matched".
+    """
+
+    __tablename__ = "guest_access"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    enrolled_identity_id: Mapped[int] = mapped_column(
+        ForeignKey("enrolled_identities.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    guest_label: Mapped[str] = mapped_column(String(120), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_guest_access_identity_expires", "enrolled_identity_id", "expires_at"),)
+
+
+class Digest(Base):
+    """A generated daily/weekly narrative digest built only from stored events."""
+
+    __tablename__ = "digests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    period: Mapped[str] = mapped_column(String(16), nullable=False)  # daily | weekly
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    narrative: Mapped[str] = mapped_column(Text, nullable=False)
+    event_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
