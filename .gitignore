@@ -193,3 +193,7 @@ cython_debug/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Frontend build artifacts
+web/dist/
+web/tsconfig.tsbuildinfo
