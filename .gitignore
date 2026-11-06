@@ -58,6 +58,16 @@ cover/
 *.mo
 *.pot
 
+# ---------------------------------------------------------------------------
+# Security scan artifacts (generated; summarized in docs/security/findings.md)
+# ---------------------------------------------------------------------------
+docs/security/*_audit.json
+docs/security/*-audit.json
+security-scan-*.json
+trivy-*.json
+sarif-*.json
+*.sarif
+
 # Logs
 *.log
 logs/
