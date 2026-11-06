@@ -6,8 +6,7 @@ Ships behind the ``DIGEST`` feature flag.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -17,7 +16,6 @@ from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import User
 from ..services.digest import generate_digest, latest_digest
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

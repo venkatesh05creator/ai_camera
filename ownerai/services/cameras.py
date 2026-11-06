@@ -184,6 +184,7 @@ def verify_device_signature(
 def purge_expired_nonces(db, max_age_seconds: int = 300) -> int:
     """Delete device nonces older than the maximum allowable drift window."""
     from datetime import datetime, timedelta, timezone
+
     from ..models import DeviceNonce
 
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)

@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
-from unittest import mock
 
 import numpy as np
-import pytest
 from sqlalchemy.orm import Session
 
-from ownerai.db import get_engine, session_scope
-from ownerai.models import CameraHealthCheck, Device, User
+from ownerai.db import get_engine
+from ownerai.models import Device, User
 from ownerai.services.health import check_frozen, probe_frame, run_health_check
-from ownerai.settings import get_settings
 
 
 def _make_frame(brightness: int = 128) -> np.ndarray:

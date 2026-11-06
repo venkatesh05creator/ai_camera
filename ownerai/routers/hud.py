@@ -3,25 +3,20 @@
 from __future__ import annotations
 
 import logging
-import os
-import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     import psutil
 except Exception:
     psutil = None
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import User
-from ..sessions import current_session_from_request
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

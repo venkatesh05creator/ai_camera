@@ -1,11 +1,11 @@
 """Tests for JARVIS features integrated into ownerai: tools, voice commands, HUD, and telemetry."""
 
-import pytest
 from sqlalchemy.orm import Session
+
 from ownerai.db import get_engine
-from ownerai.services.ai import execute_tool, TOOL_SPECS
+from ownerai.models import Role, User
+from ownerai.services.ai import TOOL_SPECS, execute_tool
 from ownerai.services.voice import build_command
-from ownerai.models import User, Role
 
 
 def test_ownerai_jarvis_tool_specs():

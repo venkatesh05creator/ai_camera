@@ -15,7 +15,6 @@ from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import User
 from ..services.doctor import DoctorError, benchmark_provider, run_doctor
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from ..db import session_scope
 from ..features import is_enabled
 from ..settings import Settings, get_settings
 
@@ -104,7 +103,6 @@ class WakeWordService:
         """List all active wake word sessions."""
         if not self._enabled():
             return []
-        now = datetime.now(timezone.utc)
         return [
             {
                 "session_id": s.session_id,

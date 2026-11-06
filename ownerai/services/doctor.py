@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 from sqlalchemy import text
 
-from ..db import get_engine, session_scope
+from ..db import session_scope
 from ..features import is_enabled
 from ..models import Device
 from ..services.ai import build_provider

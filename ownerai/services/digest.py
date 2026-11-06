@@ -7,12 +7,11 @@ Ships behind the ``DIGEST`` feature flag.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from ..db import session_scope
 from ..features import is_enabled

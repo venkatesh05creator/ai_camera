@@ -16,7 +16,6 @@ from ..db import get_db
 from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import Device, PrivacyZone, User
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

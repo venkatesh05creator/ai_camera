@@ -23,8 +23,6 @@ import os
 from dataclasses import dataclass
 from typing import Dict, Final
 
-from .settings import get_settings
-
 
 def _env_flag(name: str, default: bool = False) -> bool:
     """Read a boolean feature flag from ``OWNERAI_FEATURE_<name>``."""

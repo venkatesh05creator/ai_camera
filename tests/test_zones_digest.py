@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from ownerai.db import get_engine
-from ownerai.models import CameraEvent, Device, Digest, PrivacyZone, User
+from ownerai.models import CameraEvent, Device, User
 from ownerai.services.digest import generate_digest
 from ownerai.services.zones import blur_non_enrolled_faces, is_in_privacy_zone, point_in_polygon
 
@@ -88,7 +88,7 @@ class TestDigestService:
                 session.commit()
                 session.refresh(device)
 
-                from datetime import datetime, timezone, timedelta
+                from datetime import datetime, timedelta, timezone
                 now = datetime.now(timezone.utc)
                 for i in range(3):
                     event = CameraEvent(

@@ -17,12 +17,10 @@ from ..features import is_enabled
 from ..models import Device, User
 from ..services.baseline import (
     BaselineError,
-    Deviation,
     evaluate_deviation,
-    learn_baselines,
     latest_baseline,
+    learn_baselines,
 )
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

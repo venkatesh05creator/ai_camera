@@ -16,7 +16,6 @@ from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import User
 from ..services.replay import ReplayLog
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

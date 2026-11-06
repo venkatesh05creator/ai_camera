@@ -6,22 +6,18 @@ scoped and return metadata-only health reports - never raw frames.
 
 from __future__ import annotations
 
-import base64
-import io
 import logging
 from typing import Any, Optional
 
-import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..dependencies import authenticated_user
-from ..features import is_enabled, require
+from ..features import is_enabled
 from ..models import CameraHealthCheck, Device, User
 from ..schemas import HealthCheckOut, HealthProbeRequest
-from ..services.health import run_health_check, latest_health
-from ..settings import get_settings
+from ..services.health import latest_health, run_health_check
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +95,7 @@ def probe_device_health(
     # The schema only carries device_id; frame support is intentionally opt-in
     # via a future multipart upload.  For now we probe from metadata.
 
-    report = run_health_check(device, frame=frame)
+    run_health_check(device, frame=frame)
     record = latest_health(device.id)
     if record is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="health check not persisted")

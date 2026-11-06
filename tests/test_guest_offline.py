@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-import pytest
 from sqlalchemy.orm import Session
 
 from ownerai.db import get_engine
 from ownerai.models import EnrolledIdentity, GuestAccess, User
-from ownerai.services.ai import build_provider, OfflineProvider
+from ownerai.services.ai import OfflineProvider, build_provider
 from ownerai.services.guest import (
     grant_guest_access,
     is_guest_access_valid,

@@ -268,7 +268,6 @@ class GroqProvider:
 
 class GeminiFlashProvider:
     """Client for Google Gemini Flash free tier (15 RPM / 1,500 RPD).
-    
     Guarded by strict owner privacy control: only active when GEMINI_API_KEY is
     configured and OWNERAI_ENABLE_CLOUD_VISION is explicitly set to 1/true.
     Never sends biometric embeddings.
@@ -343,7 +342,7 @@ def build_provider(settings: Optional[Settings] = None) -> AIProvider:
         try:
             return GeminiFlashProvider(settings)
         except Exception:
-            pass
+            logger.debug("Gemini provider unavailable, falling through")
 
     # 2. Groq Cloud LLM (with automatic HTTP 429 rate limit backoff)
     if os.environ.get("GROQ_API_KEY") or getattr(settings, "ai_provider", None) == "groq":

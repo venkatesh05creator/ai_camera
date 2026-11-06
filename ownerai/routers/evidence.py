@@ -18,7 +18,6 @@ from ..db import get_db
 from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import AssistantTurn, CameraEvent, Device, User
-from ..schemas import EventOut
 
 logger = logging.getLogger(__name__)
 

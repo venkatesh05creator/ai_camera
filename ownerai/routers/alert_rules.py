@@ -15,14 +15,13 @@ import re
 from datetime import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import AlertRule, Device, User
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

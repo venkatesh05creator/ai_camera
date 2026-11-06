@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from ownerai.services.doctor import DoctorError, run_doctor, benchmark_provider
+from ownerai.services.doctor import DoctorError, benchmark_provider, run_doctor
 from ownerai.services.mcp import MCPError, MCPRuntime
 from ownerai.services.wake_word import _wake_word
 

@@ -11,11 +11,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy.orm import Session
-
 from ..db import session_scope
 from ..features import is_enabled
-from ..models import EnrolledIdentity, GuestAccess, User
+from ..models import EnrolledIdentity, GuestAccess
 from ..settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)

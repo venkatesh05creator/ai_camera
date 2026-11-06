@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -15,7 +15,6 @@ from ..dependencies import authenticated_user
 from ..features import is_enabled
 from ..models import User
 from ..services.mcp import MCPError, MCPRuntime
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

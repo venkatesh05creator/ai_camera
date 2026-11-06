@@ -12,11 +12,9 @@ import json
 import logging
 from typing import Any, Optional
 
-from sqlalchemy.orm import Session
-
 from ..db import session_scope
 from ..features import is_enabled
-from ..models import AssistantTurn, User
+from ..models import AssistantTurn
 from ..settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)

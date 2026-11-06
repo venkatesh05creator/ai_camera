@@ -6,15 +6,15 @@ Ships behind the ``GUEST_ACCESS`` feature flag.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..dependencies import authenticated_user
 from ..features import is_enabled
-from ..models import EnrolledIdentity, GuestAccess, User
+from ..models import EnrolledIdentity, User
 from ..services.guest import (
     GuestAccessError,
     grant_guest_access,
@@ -22,7 +22,6 @@ from ..services.guest import (
     list_guest_access,
     revoke_guest_access,
 )
-from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 

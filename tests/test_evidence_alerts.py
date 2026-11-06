@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
 from sqlalchemy.orm import Session
 
 from ownerai.db import get_engine
