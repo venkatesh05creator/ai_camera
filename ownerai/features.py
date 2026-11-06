@@ -114,6 +114,12 @@ FLAGS: Final[Dict[str, FeatureFlag]] = {
         "read-only JARVIS tools; no person tracking.",
         default=False,
     ),
+    "EVAL_HARNESS": FeatureFlag(
+        "EVAL_HARNESS",
+        "Offline evaluation harness measuring grounding accuracy and "
+        "hallucinated detections in JARVIS turns.",
+        default=False,
+    ),
 }
 
 

@@ -37,6 +37,7 @@ from .routers import (
     devices,
     digest,
     doctor,
+    eval,
     events,
     evidence,
     guest,
@@ -162,6 +163,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(zones.router)
     app.include_router(wake_word.router)
     app.include_router(world.router)
+    app.include_router(eval.router)
     app.include_router(identities.router)
     app.include_router(chat.router)
     app.include_router(voice.router)
