@@ -120,6 +120,12 @@ FLAGS: Final[Dict[str, FeatureFlag]] = {
         "hallucinated detections in JARVIS turns.",
         default=False,
     ),
+    "SECURITY_BRIEFING": FeatureFlag(
+        "SECURITY_BRIEFING",
+        "Overnight security briefing agent: a spoken + written narrative "
+        "summary of stored events, owner-opted-in for external integrations.",
+        default=False,
+    ),
 }
 
 
