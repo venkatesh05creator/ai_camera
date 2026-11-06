@@ -163,6 +163,10 @@ class Settings(BaseSettings):
     ai_context_max_chars: int = 4000
     ai_daily_token_budget: int = 100_000
     ai_daily_request_budget: int = 200
+    # Auto-detect a local engine (e.g. Ollama) when no explicit cloud provider
+    # is configured.  Local-first: never sends data to a cloud provider unless
+    # the owner explicitly selects one.
+    ai_auto_detect_engine: bool = True
 
     # ------------------------------------------------------------------
     # Innovation features (Phase 3 / Phase 3B)

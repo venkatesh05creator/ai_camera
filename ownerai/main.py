@@ -55,6 +55,7 @@ from .routers import (
     world,
     zones,
 )
+from .services.ai import provider_summary
 from .sessions import session_from_token
 from .settings import get_settings
 
@@ -174,6 +175,12 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(contact.router)
     app.include_router(hud.router)
     app.include_router(pages.router)
+
+    # Visible indicator of which AI provider answers (local-first, never sends
+    # data anywhere).  See ownerai/services/ai.py::provider_summary.
+    @app.get("/api/ai/provider", include_in_schema=False)
+    def ai_provider_info():
+        return provider_summary()
 
     if STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

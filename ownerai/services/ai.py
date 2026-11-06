@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import json
 import logging
+import socket
+import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol
 
 import httpx
+from pydantic import SecretStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -377,8 +380,90 @@ def build_provider(settings: Optional[Settings] = None) -> AIProvider:
         except AIError:
             logger.warning("falling back to the offline provider")
 
-    # 4. Default Offline Deterministic Provider (100% private, 0 data sent)
+    # 4. Auto-detect a local engine (e.g. Ollama) when enabled and no explicit
+    #    cloud provider is configured.  Local-first: never sends data to a cloud
+    #    provider unless the owner explicitly selects one.
+    if settings.ai_auto_detect_engine and _ollama_available(settings):
+        try:
+            prov_settings = Settings()
+            prov_settings.ai_api_base = "http://127.0.0.1:11434/v1"
+            prov_settings.ai_model = settings.ai_model or "llama3.1"
+            # Ollama does not require an API key; use a placeholder so the
+            # OpenAI-compatible provider accepts it.
+            prov_settings.ai_api_key = SecretStr("ollama-local")
+            provider = OpenAICompatibleProvider(prov_settings)
+            provider.name = "ollama"
+            return provider
+        except AIError:
+            pass
+
+    # 5. Default Offline Deterministic Provider (100% private, 0 data sent)
     return OfflineProvider()
+
+
+def _ollama_available(settings: Optional[Settings] = None, timeout: float = 2.0) -> bool:
+    """Return True if a local Ollama server appears reachable.
+
+    Only probes loopback addresses so no external network is touched.  The
+    probe runs in a daemon thread joined with a hard timeout so that a
+    broken/unresponsive network stack cannot block the application or test
+    suite indefinitely.
+    """
+    settings = settings or get_settings()
+
+    result = {"available": False}
+
+    def _probe() -> None:
+        try:
+            with socket.create_connection(("127.0.0.1", 11434), timeout=1.0):
+                result["available"] = True
+        except Exception:  # pragma: no cover - connection refused / unreachable
+            result["available"] = False
+
+    thread = threading.Thread(target=_probe, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout)
+    return result["available"]
+
+
+def provider_summary(settings: Optional[Settings] = None) -> Dict[str, Any]:
+    """Describe which AI provider would serve a request.
+
+    Used for the visible 'which model answered' indicator.  Never sends data
+    anywhere; it only inspects configuration and local loopback reachability.
+    """
+    import os
+
+    settings = settings or get_settings()
+    if settings.ai_auto_detect_engine and _ollama_available(settings):
+        return {
+            "provider": "ollama",
+            "source": "auto-detected",
+            "local": True,
+            "base": "http://127.0.0.1:11434/v1",
+        }
+    if (
+        os.environ.get("GROQ_API_KEY")
+        or getattr(settings, "ai_provider", None) == "groq"
+    ):
+        return {"provider": "groq", "source": "configured", "local": False}
+    if settings.ai_provider == "openai_compatible" and settings.ai_api_key:
+        return {
+            "provider": settings.ai_model or "openai_compatible",
+            "source": "configured",
+            "local": False,
+            "base": settings.ai_api_base,
+        }
+    if os.environ.get("GEMINI_API_KEY") and os.environ.get(
+        "OWNERAI_ENABLE_CLOUD_VISION", "0"
+    ).lower() in ("1", "true"):
+        return {
+            "provider": "gemini_flash",
+            "source": "configured",
+            "local": False,
+        }
+    return {"provider": "offline", "source": "default", "local": True}
+
 
 
 # ---------------------------------------------------------------------------
