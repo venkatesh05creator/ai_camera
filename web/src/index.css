@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* Aegis AI — dark-first tokens. Light mode via [data-theme="light"] */
+:root {
+  --surface: #0f172a;
+  --panel: #1e293b;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #22d3ee;
+  --danger: #ef4444;
+}
+
+[data-theme="light"] {
+  --surface: #f8fafc;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--text);
+  min-height: 100dvh;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
