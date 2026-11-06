@@ -24,6 +24,7 @@ if "TF_ENABLE_ONEDNN_OPTS" not in os.environ:
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 import cv2
+
 from core_engine import FaceEngine
 
 
@@ -43,11 +44,11 @@ def cmd_live(model: str, threshold: float | None = None) -> None:
         print("[ERROR] Could not open webcam (Camera index 0).")
         return
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f" LIVE FACE RECOGNITION - Model: {model.upper()}")
     print(f" Datastore: {engine.get_datastore_path().name} ({len(engine.load_datastore())} enrolled)")
-    print(f" Controls: Press 'q' to quit, 's' to snapshot & enroll")
-    print(f"=======================================================\n")
+    print(" Controls: Press 'q' to quit, 's' to snapshot & enroll")
+    print("=======================================================\n")
 
     prev_time = time.time()
     datastore = engine.load_datastore()
@@ -91,10 +92,10 @@ def cmd_enroll_live(model: str) -> None:
         print("[ERROR] Could not open webcam.")
         return
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f" LIVE FACE ENROLLMENT - Model: {model.upper()}")
-    print(f" Press 'c' to capture face & enter name | 'q' to quit")
-    print(f"=======================================================\n")
+    print(" Press 'c' to capture face & enter name | 'q' to quit")
+    print("=======================================================\n")
 
     try:
         while True:
@@ -180,13 +181,14 @@ def cmd_web(port: int = 8000, modern: bool = True) -> None:
     os.environ["PORT"] = str(port)
     if modern:
         import webbrowser
+
         import uvicorn
-        print(f"\n=======================================================")
-        print(f" FULL-STACK PRIVACY-FIRST AI SURVEILLANCE PLATFORM")
+        print("\n=======================================================")
+        print(" FULL-STACK PRIVACY-FIRST AI SURVEILLANCE PLATFORM")
         print(f" Web Dashboard: http://127.0.0.1:{port}")
         print(f" API Docs:      http://127.0.0.1:{port}/docs")
-        print(f" Auth Mode:     Owner-Gated (Configure credentials via .env)")
-        print(f"=======================================================\n")
+        print(" Auth Mode:     Owner-Gated (Configure credentials via .env)")
+        print("=======================================================\n")
         try:
             webbrowser.open(f"http://127.0.0.1:{port}")
         except Exception:
@@ -301,6 +303,16 @@ def main() -> None:
     # Test
     subparsers.add_parser("test", help="Run automated test suite")
 
+    # Doctor
+    doctor_p = subparsers.add_parser(
+        "doctor", help="Run startup health probes (camera, model, DB, disk)"
+    )
+    doctor_p.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Also benchmark the AI provider latency",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -324,6 +336,95 @@ def main() -> None:
         cmd_web(port=args.port)
     elif args.command == "test":
         cmd_test()
+    elif args.command == "doctor":
+        cmd_doctor()
+        if getattr(args, "benchmark", False):
+            cmd_doctor_benchmark()
+
+
+# ---------------------------------------------------------------------------
+# Doctor command (OpenJarvis-inspired, Phase O-1)
+# ---------------------------------------------------------------------------
+
+def cmd_doctor() -> None:
+    """Run honest startup health probes: camera, model, DB, disk, keys, permissions.
+
+    Mirrors the ``/api/doctor`` HTTP endpoint but as a CLI command so the owner
+    can diagnose the installation without starting the web server.  Never fakes
+    a healthy result - ``.unknown(reason:)`` is the honest answer when a
+    dependency cannot be verified.
+    """
+    from ownerai.features import is_enabled
+    from ownerai.services.doctor import DoctorError, run_doctor
+
+    if not is_enabled("DOCTOR"):
+        print(
+            "DOCTOR feature is not enabled. Set OWNERAI_FEATURE_DOCTOR=1 to run health probes."
+        )
+        return
+
+    try:
+        report = run_doctor()
+    except DoctorError as exc:
+        print(f"doctor: {exc}")
+        return
+
+    print("== Aegis AI Doctor Report ==")
+    print(f"Overall: {report.overall.upper()}")
+    print(f"Timestamp: {report.timestamp}")
+    print()
+    for check in report.checks:
+        status = check.status.upper()
+        mark = {
+            "OK": "OK",
+            "UNKNOWN": "??",
+            "SOFT": "!!",
+            "LOUD": "!!",
+            "CRITICAL": "XX",
+        }.get(status, "..")
+        lat = f" ({check.latency_ms:.1f} ms)" if check.latency_ms is not None else ""
+        print(f"  {mark} [{status:8}] {check.name}: {check.message}{lat}")
+        if check.detail:
+            for key, value in check.detail.items():
+                if key == "latency_ms":
+                    continue
+                print(f"      {key}: {value}")
+    print()
+
+    if report.overall == "critical":
+        print("CRITICAL: one or more dependencies are broken. Review the checks above.")
+        sys.exit(1)
+    elif report.overall == "degraded":
+        print("DEGRADED: some dependencies are degraded but the app can still run.")
+    else:
+        print("OK: all core dependencies are healthy.")
+
+
+def cmd_doctor_benchmark() -> None:
+    """Benchmark the AI provider latency (mirrors /api/doctor/benchmark)."""
+    from ownerai.features import is_enabled
+    from ownerai.services.doctor import DoctorError, benchmark_provider
+
+    if not is_enabled("DOCTOR"):
+        return
+
+    try:
+        result = benchmark_provider(runs=5)
+    except DoctorError as exc:
+        print(f"doctor benchmark: {exc}")
+        return
+
+    print("== AI Provider Benchmark ==")
+    print(f"Provider: {result.get('provider')}")
+    print(f"Runs: {result.get('runs')}, Errors: {result.get('errors')}")
+    latency = result.get("latency_ms")
+    if latency:
+        print(
+            f"Latency (ms): min={latency['min']} max={latency['max']} "
+            f"mean={latency['mean']} median={latency['median']}"
+        )
+    else:
+        print("Latency: unavailable (all runs errored)")
 
 
 if __name__ == "__main__":
