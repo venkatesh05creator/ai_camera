@@ -112,4 +112,97 @@ export const api = {
     request<{ valid: boolean; entries: number; first_broken_id: number | null; problem: string | null }>(
       '/api/system/audit/verify'
     ),
+  // --- Phase 3: AI brain -----------------------------------------------------
+  quota: () => request<{ rows: Array<{ provider: string; model: string; day: string; requests: number; input_tokens: number | null; output_tokens: number | null; errors: number; cooldown_until: string | null }>; day: string | null }>('/api/ai/quota'),
+  chat: (question: string, allowRemote: boolean) =>
+    request<{
+      answer: string;
+      question: string;
+      evidence: Array<{ id: string; source: string; title: string; text: string }>;
+      verifier: { valid_badges: string[]; invalid_badges: string[]; unsupported_sentences: string[] };
+      provider: string;
+      model: string;
+    }>('/api/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages: [{ role: 'user', content: question }], question, allow_remote: allowRemote }),
+    }),
+  chatStream: async (
+    question: string,
+    allowRemote: boolean,
+    onDelta: (text: string) => void
+  ): Promise<{
+    answer: string;
+    evidence: Array<{ id: string; source: string; title: string; text: string }>;
+    verifier: { valid_badges: string[]; invalid_badges: string[]; unsupported_sentences: string[] };
+    provider: string;
+    model: string;
+  }> => {
+    const res = await fetch('/api/ai/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken() },
+      credentials: 'same-origin',
+      body: JSON.stringify({ messages: [{ role: 'user', content: question }], question, allow_remote: allowRemote }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+      const err = data?.error;
+      throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? `HTTP ${res.status}`);
+    }
+    if (!res.body) throw new ApiError(0, 'no_body', 'The stream was empty.');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let verdict: {
+      answer: string;
+      evidence: Array<{ id: string; source: string; title: string; text: string }>;
+      verifier: { valid_badges: string[]; invalid_badges: string[]; unsupported_sentences: string[] };
+      provider: string;
+      model: string;
+    } | null = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const evt = JSON.parse(line) as {
+          type: string; text?: string; code?: string; message?: string;
+          answer?: string; provider?: string; model?: string;
+          evidence?: Array<{ id: string; source: string; title: string; text: string }>;
+          verifier?: { valid_badges: string[]; invalid_badges: string[]; unsupported_sentences: string[] };
+        };
+        if (evt.type === 'delta' && evt.text) onDelta(evt.text);
+        else if (evt.type === 'verdict') {
+          verdict = {
+            answer: evt.answer ?? '',
+            evidence: evt.evidence ?? [],
+            verifier: evt.verifier ?? { valid_badges: [], invalid_badges: [], unsupported_sentences: [] },
+            provider: evt.provider ?? 'unknown',
+            model: evt.model ?? 'unknown',
+          };
+        } else if (evt.type === 'error') {
+          throw new ApiError(0, evt.code ?? 'stream_error', evt.message ?? 'Chat failed');
+        }
+      }
+    }
+    if (!verdict) throw new ApiError(0, 'no_verdict', 'Chat ended without a verified answer.');
+    return verdict;
+  },
+  memoryList: () =>
+    request<{ items: Array<{ id: number; kind: string; text: string; created_at: string; updated_at: string }>; count: number }>('/api/memory'),
+  memoryCreate: (kind: string, text: string) =>
+    request<{ id: number; kind: string; text: string }>('/api/memory', {
+      method: 'POST',
+      body: JSON.stringify({ kind, text }),
+    }),
+  memoryUpdate: (id: number, text: string) =>
+    request<{ id: number; kind: string; text: string }>(`/api/memory/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ kind: 'fact', text }),
+    }),
+  memoryDelete: (id: number) =>
+    request<{ ok: boolean }>(`/api/memory/${id}`, { method: 'DELETE' }),
+  memoryExportUrl: () => '/api/memory/export',
 };

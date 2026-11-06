@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { LoginForm } from './pages/Login';
 import { Home } from './pages/Home';
+import { Chat } from './pages/Chat';
+import { Memory } from './pages/Memory';
 
 function PanicGate({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
@@ -20,8 +23,44 @@ function PanicGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+type Page = 'home' | 'chat' | 'memory';
+
+function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
+  const { me, logout } = useAuth();
+  return (
+    <nav className="sticky top-0 z-10 border-b backdrop-blur" style={{ borderColor: 'var(--panel)', background: 'var(--surface)' }} aria-label="Primary">
+      <div className="mx-auto flex w-full max-w-2xl items-center gap-1 px-4 py-2">
+        {(['home', 'chat', 'memory'] as Page[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            aria-current={page === p ? 'page' : undefined}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium capitalize"
+            style={
+              page === p
+                ? { background: 'var(--panel)', color: 'var(--accent)' }
+                : { color: 'var(--muted)' }
+            }
+          >
+            {p}
+          </button>
+        ))}
+        <span className="ml-auto flex items-center gap-3">
+          <span className="hidden text-xs sm:inline" style={{ color: 'var(--muted)' }}>
+            {me?.display_name}
+          </span>
+          <button onClick={logout} className="rounded-lg border px-2 py-1 text-xs" style={{ borderColor: 'var(--muted)' }}>
+            Sign out
+          </button>
+        </span>
+      </div>
+    </nav>
+  );
+}
+
 function Shell() {
   const { loading, error, me, status } = useAuth();
+  const [page, setPage] = useState<Page>('home');
 
   if (loading) {
     return (
@@ -46,7 +85,10 @@ function Shell() {
   if (!me) return <LoginForm />;
   return (
     <PanicGate>
-      <Home />
+      <Nav page={page} setPage={setPage} />
+      {page === 'home' && <Home />}
+      {page === 'chat' && <Chat />}
+      {page === 'memory' && <Memory />}
     </PanicGate>
   );
 }

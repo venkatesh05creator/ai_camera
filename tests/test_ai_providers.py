@@ -205,7 +205,6 @@ def router_session(settings):
 
     from backend.app.db import get_session_factory, reset_engine
     reset_engine()
-    settings = make_settings()
 
     async def setup():
         from backend.app.db import get_engine

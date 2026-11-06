@@ -202,6 +202,7 @@ export function Home() {
       <section className="mb-4 rounded-2xl p-5" style={{ background: 'var(--panel)' }} aria-label="Assistant, phase 5">
         <h2 className="mb-3 font-semibold">Assistant</h2>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          Grounded chat is live in the <span className="font-semibold">Chat</span> tab (evidence badges + machine-verified answers).
           The local LLM arrives in Phase 5. No model is running yet — nothing will pretend otherwise.
         </p>
       </section>
