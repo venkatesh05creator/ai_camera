@@ -297,3 +297,23 @@ class PaginatedResponse(BaseModel):
 
 
 SAFE_FILENAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
+
+
+# ---------------------------------------------------------------------------
+# Camera health (Phase 3 item #5)
+# ---------------------------------------------------------------------------
+
+class HealthCheckOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+    id: int
+    device_id: int
+    status: str  # healthy | tampered | blurry | low_light | frozen | unknown
+    blur_variance: Optional[float] = None
+    mean_brightness: Optional[float] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
+    checked_at: datetime
+
+
+class HealthProbeRequest(StrictModel):
+    device_id: int = Field(ge=1)
