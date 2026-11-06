@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -81,3 +81,15 @@ async def verify_chain(session: AsyncSession) -> dict[str, Any]:
         expected_prev = row.entry_hash
     return {"valid": True, "entries": len(rows), "first_broken_id": None,
             "problem": None}
+
+
+async def list_today(session: AsyncSession) -> list[AuditLog]:
+    """Today's (UTC) audit entries, oldest first — used as chat evidence."""
+    from datetime import datetime
+
+    midnight = datetime.now(UTC).replace(
+        hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    rows = (await session.execute(
+        select(AuditLog).where(AuditLog.ts >= midnight)
+        .order_by(AuditLog.id.asc()))).scalars().all()
+    return list(rows)

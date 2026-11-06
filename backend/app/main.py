@@ -95,9 +95,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.panic = app_globals.PANIC
 
     # --- routers --------------------------------------------------------------
+    from .routers import ai as ai_router
     from .routers import auth as auth_router
     from .routers import system as system_router
     app.include_router(auth_router.router)
+    app.include_router(ai_router.router)
+    app.include_router(ai_router.memory_router)
     app.include_router(system_router.router)
 
     # --- health: REAL metrics only ------------------------------------------
@@ -114,8 +117,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         })
 
     # --- error handling -------------------------------------------------------
+    from .ai.providers import ProviderError
+    from .services.memory_service import MemoryError
+
     @app.exception_handler(AuthError)
     async def auth_error(request: Request, exc: AuthError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={"error": {"code": exc.code, "message": exc.message}})
+
+    @app.exception_handler(MemoryError)
+    async def memory_error(request: Request, exc: MemoryError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content={"error": {"code": exc.code, "message": exc.message}})
+
+    @app.exception_handler(ProviderError)
+    async def provider_error(request: Request, exc: ProviderError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status,
             content={"error": {"code": exc.code, "message": exc.message}})

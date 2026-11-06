@@ -53,3 +53,30 @@ class AuditVerifyOut(StrictModel):
     entries: int
     first_broken_id: int | None
     problem: str | None
+
+
+# --- Phase 3: AI brain + memory ---------------------------------------------
+
+class ChatMessageIn(StrictModel):
+    role: str = Field(default="user", pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatIn(StrictModel):
+    messages: list[ChatMessageIn] = Field(min_length=1, max_length=20)
+    allow_remote: bool = False
+    # optional single-question shortcut (multi-turn = pass history above)
+    question: str = Field(default="", max_length=2000)
+
+
+class MemoryIn(StrictModel):
+    kind: str = Field(default="fact", max_length=32)
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class MemoryOut(StrictModel):
+    id: int
+    kind: str
+    text: str
+    created_at: str
+    updated_at: str
